@@ -1,0 +1,3 @@
+[submodule "src/lib/dailytrojan-lib"]
+	path = src/lib/dailytrojan-lib
+	url = https://github.com/DailyTrojan-Online/dailytrojan-lib
