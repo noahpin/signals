@@ -9,5 +9,10 @@ declare global {
 		// interface Platform {}
 	}
 }
+declare global {
+	interface Window {
+		DTGCore: DTGameCore;
+	}
+}
 
 export {};
