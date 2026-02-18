@@ -3,6 +3,7 @@
 	import "$lib/dailytrojan-lib/icons/tabler-icons.css"
 	import "$lib/dailytrojan-lib/fonts/fonts.css"
 	import favicon from '$lib/assets/favicon.svg';
+	import "$lib/main.css"
 
 	let { children } = $props();
 </script>

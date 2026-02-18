@@ -9,9 +9,9 @@
 
     let gridX = 6;
     let gridY = 6;
-    let maxGridWidth = 400;
-    let gridBlockWidth = Math.ceil(maxGridWidth / gridX);
-    let gridBlockHeight = gridBlockWidth;
+    let maxGridWidth = $state(400);
+    let gridBlockWidth = $derived((Math.ceil(maxGridWidth / gridX)));
+    let gridBlockHeight = $derived(gridBlockWidth);
     let source = $state({ x: 0, y: 0 });
     let sink = $state({ x: gridX - 1, y: gridY - 1 });
 
@@ -28,12 +28,13 @@
     ];
     type Block = {
         position: { x: number; y: number };
-        truthPosition: {x: number; y: number};
+        truthPosition: { x: number; y: number };
         placed: boolean;
         locked: boolean;
         parts: { x: number; y: number }[];
         color: Color;
         id: string;
+        dragging: boolean;
         blockHome: HTMLElement | null;
         blockEl: HTMLElement | null;
         cssPosition: Spring<{ x: number; y: number }>;
@@ -223,16 +224,17 @@
         let colors = generateBeautifulColors(amountOfBlocks, {
             hueStep: 15,
             hueJitter: 12,
-            lightRange: [0.2, 0.7],
+            lightRange: [0.35, 0.8],
             satRange: [0.5, 0.8],
         });
         //add the four corners to the blocks
         blocks.push({
             position: { x: 0, y: 0 },
-            truthPosition: {x: 0, y: 0},
+            truthPosition: { x: 0, y: 0 },
             parts: [],
             color: colors[0],
             signalPath: [],
+            dragging: false,
             cardinalTwoPairs: [],
             id: genRandomId(),
             placed: false,
@@ -247,6 +249,7 @@
             parts: [],
             color: colors[1],
             signalPath: [],
+            dragging: false,
             cardinalTwoPairs: [],
             id: genRandomId(),
             placed: false,
@@ -257,12 +260,13 @@
         });
         blocks.push({
             position: { x: gridX - 1, y: gridY - 1 },
-            truthPosition:{ x: gridX - 1, y: gridY - 1 },
+            truthPosition: { x: gridX - 1, y: gridY - 1 },
             parts: [],
             color: colors[2],
             signalPath: [],
             cardinalTwoPairs: [],
             id: genRandomId(),
+            dragging: false,
             placed: false,
             locked: false,
             blockEl: null,
@@ -273,6 +277,7 @@
             position: { x: gridX - 1, y: 0 },
             truthPosition: { x: gridX - 1, y: 0 },
             parts: [],
+            dragging: false,
             color: colors[3],
             signalPath: [],
             cardinalTwoPairs: [],
@@ -318,13 +323,14 @@
             if (p == undefined) continue;
             blocks.push({
                 position: { ...p },
-                truthPosition: { ...p},
+                truthPosition: { ...p },
                 parts: [],
                 color: colors[i + 4],
                 signalPath: [],
                 cardinalTwoPairs: [],
                 id: genRandomId(),
                 placed: false,
+                dragging: false,
                 locked: false,
                 blockHome: null,
                 blockEl: null,
@@ -499,23 +505,24 @@
         });
     }
 
-    let selectedBlock: Block;
+    let selectedBlock: Block | null;
     let pPointer: { x: number; y: number } = { x: 0, y: 0 };
+    let dragSway = $state(0);
     function blockPointerDown(block: Block, e: PointerEvent) {
+        dragSway = 0;
         if (!block) return;
         if (block.locked) return;
         e.preventDefault();
         selectedBlock = block;
-        console.log(block);
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
         pPointer = { x: e.clientX, y: e.clientY };
-        
-        
+
         for (let x = 0; x < gridX; x++) {
             for (let y = 0; y < gridY; y++) {
                 occupiedSpaces[x][y] = false;
             }
         }
+        selectedBlock.dragging = true;
         blocks.forEach((b) => {
             if (b.placed && b != selectedBlock) {
                 b.parts.forEach((p) => {
@@ -530,10 +537,12 @@
         if (
             !(e.target as HTMLElement).hasPointerCapture(e.pointerId) ||
             gameGrid == null ||
+            selectedBlock == null ||
             selectedBlock.blockEl == null
         )
             return;
-            e.preventDefault();
+        e.preventDefault();
+        currentlyHovering = true;
         let current = selectedBlock.cssPosition.current;
         let bRect = selectedBlock.blockEl.getBoundingClientRect();
         let grid = gameGrid.getBoundingClientRect();
@@ -541,6 +550,7 @@
             x: e.clientX - grid.left - bRect.width / 2,
             y: e.clientY - grid.top - bRect.height / 2,
         });
+        dragSway = e.clientX - pPointer.x;
         pPointer = { x: e.clientX, y: e.clientY };
         /// now calculating the hovering spaces
         for (let x = 0; x < gridX; x++) {
@@ -559,17 +569,31 @@
         x = Math.floor(x);
         y = Math.floor(y);
         let valid = validateBlockPlacement(selectedBlock, { x, y });
+        currentHoveringPlacement = {x, y};
         currentPlacementInvalid = !valid;
         selectedBlock.parts.forEach((p) => {
-            if (x + p.x >= 0 && x + p.y >= 0)
+            if (
+                x + p.x >= 0 &&
+                x + p.y >= 0 &&
+                x + p.x < gridX &&
+                y + p.y < gridY
+            )
                 hoveringSpaces[x + p.x][y + p.y] = true;
         });
     }
     let currentPlacementInvalid = $state(false);
+    let currentHoveringPlacement: { x: number; y: number } = $state({
+        x: 0,
+        y: 0,
+    });
+    let currentlyHovering = $state(false);
     function pointerUp(e: PointerEvent) {
-      e.preventDefault();
+        dragSway = 0;
+        currentlyHovering = false;
+        e.preventDefault();
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
         if (
+            selectedBlock != null &&
             !selectedBlock.locked &&
             !selectedBlock.placed &&
             selectedBlock.blockHome != null &&
@@ -586,6 +610,9 @@
             });
         }
 
+        if (selectedBlock == null) return;
+
+        selectedBlock.dragging = false;
         if (gameGrid == null) return;
         let grid = gameGrid.getBoundingClientRect();
         let x = e.clientX - grid.left;
@@ -598,11 +625,10 @@
         x = Math.floor(x);
         y = Math.floor(y);
         let valid = validateBlockPlacement(selectedBlock, { x, y });
-        console.log(valid)
         if (valid) {
             placeBlock(selectedBlock, { x, y });
         } else {
-          selectedBlock.placed = false;
+            selectedBlock.placed = false;
             if (
                 !selectedBlock.locked &&
                 !selectedBlock.placed &&
@@ -615,22 +641,13 @@
                 let bRect = selectedBlock.blockEl.getBoundingClientRect();
                 let grid = gameGrid.getBoundingClientRect();
                 selectedBlock.placed = false;
-                selectedBlock.cssPosition.set(
-                    {
-                        x:
-                            rect.left -
-                            grid.left +
-                            rect.width / 2 -
-                            bRect.width / 2,
-                        y:
-                            rect.top -
-                            grid.top +
-                            rect.height / 2 -
-                            bRect.height / 2,
-                    },
-                );
+                selectedBlock.cssPosition.set({
+                    x: rect.left - grid.left + rect.width / 2 - bRect.width / 2,
+                    y: rect.top - grid.top + rect.height / 2 - bRect.height / 2,
+                });
             }
         }
+        selectedBlock = null;
     }
 
     let occupiedSpaces: boolean[][] = $state(new Array(gridX));
@@ -647,23 +664,19 @@
         block: Block,
         position: { x: number; y: number },
     ) {
-        for(let i = 0; i < block.parts.length; i++) {
-          let p = block.parts[i]
-          
-          if (position.x + p.x < 0 || position.y + p.y < 0) {
-              console.log("invalid");
-              return false;
-          }
-          if (position.x + p.x >= gridX || position.y + p.y >= gridY) {
-              console.log("invalid");
-              return false;
-          }
-          if (occupiedSpaces[position.x + p.x][position.y + p.y]) {
-              console.log("invalid");
-              return false;
-          }
+        for (let i = 0; i < block.parts.length; i++) {
+            let p = block.parts[i];
+
+            if (position.x + p.x < 0 || position.y + p.y < 0) {
+                return false;
+            }
+            if (position.x + p.x >= gridX || position.y + p.y >= gridY) {
+                return false;
+            }
+            if (occupiedSpaces[position.x + p.x][position.y + p.y]) {
+                return false;
+            }
         }
-        console.log("valid")
         return true;
     }
 
@@ -672,8 +685,6 @@
         position: { x: number; y: number },
         instant = false,
     ) {
-        console.log(occupiedSpaces);
-
         block.placed = true;
         block.position = { ...position };
         block.cssPosition.set(
@@ -698,14 +709,28 @@
             }
         });
     }
+    
+    function repositionBlocks() {
+      blocks.forEach((b)=>{
+        if(b.placed)
+        b.cssPosition.set(
+            {
+                x: b.position.x * gridBlockWidth,
+                y: b.position.y * gridBlockHeight,
+            },
+            { instant: true },
+        );
+      })
+    }
 
     onMount(async () => {
         initializeGame();
         window.initGame = initializeGame;
+        onResize()
     });
     async function initializeGame() {
         DTGCore = new DTGameCore(null, null);
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 0; i++) {
             DTGCore.randomFloat();
         }
         window.DTGCore = DTGCore;
@@ -747,21 +772,6 @@
         });
     }
 
-    function stresstest() {
-        let fails = 0;
-        let i = 0;
-        let intrv = setInterval(() => {
-            let s = generateCorrectPath();
-            if (!s) {
-                fails++;
-            }
-            i++;
-            if (i == 100) {
-                clearInterval(intrv);
-                console.log(fails);
-            }
-        }, 0);
-    }
     let verticalBlockPadding = 7;
     let horizontalBlockPadding = 2;
     function boundsOfArray(arr: { x: number; y: number }[]) {
@@ -851,6 +861,23 @@
 
     let strokePadding = 7;
     let blockRoundness = 10;
+    
+    let previewHoverPadding = 0;
+    let previewOutlineWidth = 4;
+    
+    async function onResize() {
+      if(window.innerWidth < 500 && maxGridWidth != 300) {
+        maxGridWidth = 300;
+        await tick();
+        setBlockDefaultPositions();
+        repositionBlocks();
+      }else if (window.innerWidth >= 500 && maxGridWidth != 400) {
+        maxGridWidth = 400
+        await tick();
+        setBlockDefaultPositions();
+        repositionBlocks();
+      }
+    }
 </script>
 
 <header>
@@ -863,6 +890,8 @@
         alt="Daily Trojan Logo"
     />
 </header>
+
+<svelte:window onresize={onResize}></svelte:window>
 
 <main>
     <div class="game-wrapper">
@@ -917,14 +946,16 @@
                             "px"}
                         style:--block-position-y={block.cssPosition.current.y +
                             "px"}
-                        style:--shadow-color={block.color
-                            .darken(0.5)
-                            .hex() as any as string}
-                        style:left={"0px"}
-                        bind:this={block.blockEl}
+                            style:--shadow-color={block.color
+                                .darken(0.5)
+                                .hex() as any as string}
+                            style:left={"0px"}
+                            bind:this={block.blockEl}
                     >
                         <div
                             class="game-block"
+                            class:block-dragging={block.dragging}
+                            style:animation-delay={`${Math.random() * 4}s`}
                             class:game-block-locked={block.locked}
                             style:width={(bounds.absolute.maxX + 1) *
                                 gridBlockWidth +
@@ -935,6 +966,9 @@
                             style:--shadow-color={block.color
                                 .darken(0.5)
                                 .hex() as any as string}
+                            style:--sway-angle={block.dragging
+                                ? `${dragSway * 2}deg`
+                                : "0deg"}
                             onpointerdown={(e) => {
                                 blockPointerDown(block, e);
                             }}
@@ -1117,8 +1151,8 @@
                                                         `L ${(p.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(p.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} `,
                                                 )
                                                 .join(" ")}
-                                        stroke-width="28px"
-                                        stroke={block.color.brighten(0.4).hex()}
+                                        stroke-width="24px"
+                                        stroke={block.color.brighten(1.2).hex()}
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
                                         fill="transparent"
@@ -1132,17 +1166,158 @@
                                                         `L ${(p.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(p.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} `,
                                                 )
                                                 .join(" ")}
-                                        stroke-width="20px"
-                                        stroke={block.color.darken(1.5).hex()}
+                                        stroke-width="16px"
+                                        stroke={block.color.darken(1.8).hex()}
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
                                         fill="transparent"
-                                    ></path></g
-                                >
+                                    ></path>
+                                </g>
                             </svg>
                         </div>
                     </div>
                 {/each}
+                <div class="preview-mask-wrapper"
+                    style:width={
+                    60 + 
+                    gridX * gridBlockWidth + "px"
+                    }
+                    style:height={
+                    60 + 
+                    gridY * gridBlockHeight + "px"
+                    }>
+                {#if currentlyHovering && selectedBlock != null}
+                    {@const block = selectedBlock}
+                    {@const bounds = boundsOfArray([
+                        ...block.parts.map((p) => ({
+                            x: currentHoveringPlacement.x + p.x,
+                            y: currentHoveringPlacement.y + p.y,
+                        })),
+                    ])}
+                    <div
+                        class="game-block-drop-preview"
+                        style:width={(bounds.absolute.maxX + 1) *
+                            gridBlockWidth +
+                            "px"}
+                        style:height={(bounds.absolute.maxY + 1) *
+                            gridBlockHeight +
+                            "px"}
+                        style:top={"0px"}
+                        style:--block-position-x={currentHoveringPlacement.x * gridBlockWidth + 30+
+                            "px"}
+                        style:--block-position-y={currentHoveringPlacement.y * gridBlockHeight + 30 +
+                            "px"}
+                            
+                        style:left={"0px"}
+                    >
+                            <svg
+                                class="game-block-svg"
+                                width={(bounds.absolute.maxX + 1) *
+                                    gridBlockWidth}
+                                height={(bounds.absolute.maxY + 1) *
+                                    gridBlockHeight}
+                                viewBox={`0 0 ${(bounds.absolute.maxX + 1) * gridBlockWidth} ${
+                                    (bounds.absolute.maxY + 1) * gridBlockHeight
+                                }`}
+                            >
+                                <defs>
+                                    <mask
+                                        id={`block-mask-drop-preview`}
+                                        maskUnits="userSpaceOnUse"
+                                        x="0"
+                                        y="0"
+                                        width={(bounds.absolute.maxX + 1) *
+                                            gridBlockWidth}
+                                        height={(bounds.absolute.maxY + 1) *
+                                            gridBlockHeight}
+                                    >
+                                        {#each block.cardinalTwoPairs as pair}
+                                            <path
+                                                class="game-block-cell"
+                                                d={`M ${(pair.x1 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
+                                                stroke-width={gridBlockWidth -
+                                                  previewHoverPadding *
+                                                      2}
+                                                stroke={"white"}
+                                            ></path>
+                                        {/each}
+                                        {#each block.parts as part}
+                                            <rect
+                                                class="game-block-cell"
+                                                rx={blockRoundness}
+                                                ry={blockRoundness}
+                                                x={(currentHoveringPlacement.x +
+                                                    part.x -
+                                                    bounds.relative.minX) *
+                                                    gridBlockWidth +
+                                                    previewHoverPadding}
+                                                y={(currentHoveringPlacement.y +
+                                                    part.y -
+                                                    bounds.relative.minY) *
+                                                    gridBlockHeight +
+                                                    previewHoverPadding}
+                                                width={gridBlockWidth -
+                                                    previewHoverPadding * 2}
+                                                height={gridBlockHeight -
+                                                    previewHoverPadding * 2}
+                                                fill={"white"}
+                                               
+                                            ></rect>
+                                        {/each}
+                                        
+                                        {#each block.cardinalTwoPairs as pair}
+                                            <path
+                                                class="game-block-cell"
+                                                d={`M ${(pair.x1 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
+                                                stroke-width={gridBlockWidth -
+                                                  previewOutlineWidth *
+                                                      2}
+                                                stroke={"#333"}
+                                            ></path>
+                                        {/each}
+                                        {#each block.parts as part}
+                                            <rect
+                                                class="game-block-cell"
+                                                rx={blockRoundness - previewOutlineWidth}
+                                                ry={blockRoundness - previewOutlineWidth}
+                                                x={(currentHoveringPlacement.x +
+                                                    part.x -
+                                                    bounds.relative.minX) *
+                                                    gridBlockWidth +
+                                                    previewOutlineWidth}
+                                                y={(currentHoveringPlacement.y +
+                                                    part.y -
+                                                    bounds.relative.minY) *
+                                                    gridBlockHeight +
+                                                    previewOutlineWidth}
+                                                width={gridBlockWidth -
+                                                    previewOutlineWidth * 2}
+                                                height={gridBlockHeight -
+                                                    previewOutlineWidth * 2}
+                                                fill={"#333"}
+                                               
+                                            ></rect>
+                                        {/each}
+                                    </mask>
+                                </defs>
+                                <g>
+                                    <g >
+                                       <rect 
+                                           class="block-fill-preview"
+                                           mask="url(#block-mask-drop-preview)"
+                                           x="0"
+                                           y="0"
+                                           width={(bounds.absolute.maxX + 1) *
+                                               gridBlockWidth}
+                                           height={(bounds.absolute.maxY + 1) *
+                                               gridBlockHeight} 
+                                               fill={currentPlacementInvalid ? "var(--error)" : "var(--success)"}></rect>
+                                    </g>
+                                </g>
+                            </svg>
+                        </div>
+                {/if}
+                </div>
                 <div class="game-actual-grid">
                     {#each Array(gridY) as _, y}
                         {#each Array(gridX) as _, x}
@@ -1200,7 +1375,7 @@
     .block-selector-zone {
         width: 70px;
         height: 70px;
-        background: #efefef;
+        background: var(--raised-surface);
         border-radius: 100%;
     }
     .game-block-selectors {
@@ -1214,7 +1389,7 @@
         margin-top: 30px;
     }
     .game-grid-cell {
-        background: #e3e3e3;
+        background: var(--raised-surface);
         border-radius: 12px;
         border: 2px solid var(--body-background);
         box-sizing: border-box;
@@ -1235,13 +1410,17 @@
         cursor: not-allowed !important;
     }
     .game-block {
+        --sway-angle: 0deg;
         --scale-mult: 1;
+        --scale-hover-mult: 1;
+        --sway-duration: 2s;
         position: absolute;
         top: 0;
         left: 0;
-        transition: transform 0.4s cubic-bezier(.18,1.46,.65,.98);
+        transition: transform 0.4s cubic-bezier(0.18, 1.46, 0.65, 0.98);
         pointer-events: none;
-        transform: scale(calc(1 * var(--scale-mult)));
+        transform: scale(calc(var(--scale-hover-mult) * var(--scale-mult)))
+            rotate(var(--sway-angle));
         touch-action: none;
     }
     .game-block-shadow-wrapper {
@@ -1260,8 +1439,17 @@
             calc(var(--block-position-y) - 5px)
         );
     }
+    .game-block-drop-preview {
+        position: absolute;
+        pointer-events: none !important;
+        transform: translate(
+            var(--block-position-x),
+            calc(var(--block-position-y))
+        );
+        transition: transform 0.1s;
+    }
     .game-block:has(.game-block-cell:hover):not(.game-block-locked) {
-        transform: scale(calc(1.02 * var(--scale-mult)));
+        --scale-hover-mult: 1.02;
         z-index: 99999;
     }
     .game-block-shadow-wrapper:has(.game-block-cell:hover) {
@@ -1276,7 +1464,19 @@
             drop-shadow(0px 2px 0px var(--shadow-color));
     }
     .game-block-selectable .game-block {
-        --scale-mult: 0.35;
+        --scale-mult: 0.33;
+        animation: sway var(--sway-duration) infinite both alternate-reverse
+            ease-in-out;
+    }
+    .game-block-shadow-wrapper:has(.block-dragging) {
+        filter: drop-shadow(0px 2px 0px var(--shadow-color))
+            drop-shadow(0px 2px 0px var(--shadow-color))
+            drop-shadow(0px 2px 0px var(--shadow-color))
+            drop-shadow(0px 2px 0px var(--shadow-color));
+    }
+    .game-block.block-dragging {
+        --scale-mult: 0.7;
+        animation: unset !important;
     }
     .game-block-svg {
         position: absolute;
@@ -1285,7 +1485,41 @@
         pointer-events: none;
         z-index: 99999;
     }
-    .temp-hovering {
-        background: green;
+    @keyframes sway {
+        0% {
+            --sway-angle: -3deg;
+        }
+        100% {
+            --sway-angle: 3deg;
+        }
+    }
+    .block-fill-preview {
+        transition: fill 0.1s;
+    }
+    .preview-mask-wrapper {
+        pointer-events: none !important;
+        position: absolute;
+        top: -30px;
+        left: -30px;
+        overflow: hidden;
+        mask-mode: luminance;
+        mask-composite: intersect;
+        mask-image: linear-gradient(to right, black, white 40px, white calc(100% - 40px), black), linear-gradient(to bottom, black, white 40px, white calc(100% - 40px), black);
+        -webkit-mask-mode: luminance;
+        -webkit-mask-composite: intersect;
+        -webkit-mask-image: linear-gradient(to right, black, white 40px, white calc(100% - 40px), black), linear-gradient(to bottom, black, white 40px, white calc(100% - 40px), black);
+    }
+    @media (max-width: 500px) {
+        .game-block-selectable .game-block {
+            --scale-mult: 0.55;
+        }
+        
+        .game-block.block-dragging {
+            --scale-mult: 0.8;
+        }
+        .block-selector-zone {
+            width: 80px;
+            height: 80px;
+        }
     }
 </style>

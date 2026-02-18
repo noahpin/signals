@@ -1,0 +1,5 @@
+@property --sway-angle {
+  syntax: '<angle>'; /* Specifies that the variable holds an angle value */
+  initial-value: 0deg; /* Sets the starting value */
+  inherits: false; /* Determines if the variable is inherited by children */
+}

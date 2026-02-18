@@ -8,4 +8,32 @@
 	<body data-sveltekit-preload-data="hover">
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
+	
+	
+	
+	
+		<script>
+
+		function hideBackButton() {
+			const backButton = document.getElementById("game-back-button");
+			if (backButton) {
+				backButton.style.display = "none";
+			}
+}
+
+
+function hideHeader() {
+			const header = document.querySelector("header");
+			if (header) {
+				header.style.display = "none";
+			}
+}
+
+function enableDarkMode() {
+			document.body.classList.add("dark-mode");
+}
+
+function disableDarkMode() {
+			document.body.classList.remove("dark-mode");
+}</script>
 </html>
