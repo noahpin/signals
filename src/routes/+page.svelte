@@ -504,6 +504,7 @@
     function blockPointerDown(block: Block, e: PointerEvent) {
         if (!block) return;
         if (block.locked) return;
+        e.preventDefault();
         selectedBlock = block;
         console.log(block);
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -532,6 +533,7 @@
             selectedBlock.blockEl == null
         )
             return;
+            e.preventDefault();
         let current = selectedBlock.cssPosition.current;
         let bRect = selectedBlock.blockEl.getBoundingClientRect();
         let grid = gameGrid.getBoundingClientRect();
@@ -565,6 +567,7 @@
     }
     let currentPlacementInvalid = $state(false);
     function pointerUp(e: PointerEvent) {
+      e.preventDefault();
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
         if (
             !selectedBlock.locked &&
@@ -1239,6 +1242,7 @@
         transition: transform 0.2s;
         pointer-events: none;
         transform: scale(calc(1 * var(--scale-mult)));
+        touch-action: none;
     }
     .game-block-shadow-wrapper {
         --block-position-x: 0px;
