@@ -1239,7 +1239,7 @@
         position: absolute;
         top: 0;
         left: 0;
-        transition: transform 0.2s;
+        transition: transform 0.4s cubic-bezier(.18,1.46,.65,.98);
         pointer-events: none;
         transform: scale(calc(1 * var(--scale-mult)));
         touch-action: none;
