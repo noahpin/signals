@@ -1211,7 +1211,6 @@
                         style:left={"0px"}
                     >
                             <svg
-                                class="game-block-svg"
                                 width={(bounds.absolute.maxX + 1) *
                                     gridBlockWidth}
                                 height={(bounds.absolute.maxY + 1) *
@@ -1499,6 +1498,7 @@
     .preview-mask-wrapper {
         pointer-events: none !important;
         position: absolute;
+        z-index: 999;
         top: -30px;
         left: -30px;
         overflow: hidden;
