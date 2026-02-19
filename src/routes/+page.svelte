@@ -1476,6 +1476,7 @@
     .game-block.block-dragging {
         --scale-mult: 0.7;
         animation: unset !important;
+        z-index: 9999999;
     }
     .game-block-svg {
         position: absolute;
