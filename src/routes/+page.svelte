@@ -7,24 +7,25 @@
 
     let DTGCore: DTGameCore;
 
-    let gridX = 6;
-    let gridY = 6;
+    let gridX = $state(6);
+    let gridY = $state(6);
     let maxGridWidth = $state(400);
-    let gridBlockWidth = $derived((Math.ceil(maxGridWidth / gridX)));
+    let gridBlockWidth = $derived(Math.ceil(maxGridWidth / gridX));
     let gridBlockHeight = $derived(gridBlockWidth);
     let source = $state({ x: 0, y: 0 });
     let sink = $state({ x: gridX - 1, y: gridY - 1 });
 
     let amountOfBlocks = $state(0);
 
-    let maxWaypoints = 4;
+    let maxWaypoints = 2;
     let waypoints: { x: number; y: number }[] = $state([]);
     let allPositions: { x: number; y: number }[] = [];
 
     let path: { x: number; y: number }[] = $state([{ x: -10, y: -10 }]);
     let difficulties = [
-        { gridX: 6, gridY: 6, waypoints: 2 },
-        { gridX: 6, gridY: 6, waypoints: 3 },
+        { gridX: 6, gridY: 6, waypoints: 2 , rdx: 1},
+        { gridX: 7, gridY: 7, waypoints: 6 , rdx: 8},
+        { gridX: 8, gridY: 8, waypoints: 12, rdx: 24 },
     ];
     type Block = {
         position: { x: number; y: number };
@@ -43,8 +44,42 @@
     };
     let blocks: Block[] = $state([]);
 
+    onMount(async () => {
+        initializeGame(difficulties[2]);
+        window.initGame = initializeGame;
+    });
+    async function initializeGame(difficulty: {
+        gridX: number;
+        gridY: number;
+        waypoints: number;
+        rdx: number;
+    }) {
+        gridX = difficulty.gridX;
+        gridY = difficulty.gridY;
+        maxWaypoints = difficulty.waypoints;
+        DTGCore = new DTGameCore(null, null);
+        for (let i = 0; i < difficulty.rdx; i++) {
+            DTGCore.randomFloat();
+        }
+        window.DTGCore = DTGCore;
+        
+        for (let i = 0; i < gridX; i++) {
+            occupiedSpaces[i] = new Array(gridY).fill(false);
+        }
+        for (let i = 0; i < gridX; i++) {
+            hoveringSpaces[i] = new Array(gridY).fill(false);
+        }
+        
+        generateCorrectPath();
+        generateBlocks();
+        await tick();
+        setBlockDefaultPositions();
+        await tick();
+        onResize();
+    }
+
     function genRandomId() {
-        return DTGCore.randomFloat().toString(36).substr(2, 9);
+        return Math.random().toString(36).substr(2, 9);
     }
 
     function generateCorrectPath() {
@@ -569,7 +604,7 @@
         x = Math.floor(x);
         y = Math.floor(y);
         let valid = validateBlockPlacement(selectedBlock, { x, y });
-        currentHoveringPlacement = {x, y};
+        currentHoveringPlacement = { x, y };
         currentPlacementInvalid = !valid;
         selectedBlock.parts.forEach((p) => {
             if (
@@ -651,14 +686,8 @@
     }
 
     let occupiedSpaces: boolean[][] = $state(new Array(gridX));
-    for (let i = 0; i < gridX; i++) {
-        occupiedSpaces[i] = new Array(gridY).fill(false);
-    }
 
     let hoveringSpaces: boolean[][] = $state(new Array(gridX));
-    for (let i = 0; i < gridX; i++) {
-        hoveringSpaces[i] = new Array(gridY).fill(false);
-    }
 
     function validateBlockPlacement(
         block: Block,
@@ -709,36 +738,20 @@
             }
         });
     }
-    
+
     function repositionBlocks() {
-      blocks.forEach((b)=>{
-        if(b.placed)
-        b.cssPosition.set(
-            {
-                x: b.position.x * gridBlockWidth,
-                y: b.position.y * gridBlockHeight,
-            },
-            { instant: true },
-        );
-      })
+        blocks.forEach((b) => {
+            if (b.placed)
+                b.cssPosition.set(
+                    {
+                        x: b.position.x * gridBlockWidth,
+                        y: b.position.y * gridBlockHeight,
+                    },
+                    { instant: true },
+                );
+        });
     }
 
-    onMount(async () => {
-        initializeGame();
-        window.initGame = initializeGame;
-        onResize()
-    });
-    async function initializeGame() {
-        DTGCore = new DTGameCore(null, null);
-        for (let i = 0; i < 0; i++) {
-            DTGCore.randomFloat();
-        }
-        window.DTGCore = DTGCore;
-        generateCorrectPath();
-        generateBlocks();
-        await tick();
-        setBlockDefaultPositions();
-    }
     let gameGrid: HTMLElement | null = $state(null);
     function setBlockDefaultPositions() {
         blocks.forEach((block) => {
@@ -861,22 +874,22 @@
 
     let strokePadding = 7;
     let blockRoundness = 10;
-    
+
     let previewHoverPadding = 0;
     let previewOutlineWidth = 4;
-    
+
     async function onResize() {
-      if(window.innerWidth < 500 && maxGridWidth != 300) {
-        maxGridWidth = 300;
-        await tick();
-        setBlockDefaultPositions();
-        repositionBlocks();
-      }else if (window.innerWidth >= 500 && maxGridWidth != 400) {
-        maxGridWidth = 400
-        await tick();
-        setBlockDefaultPositions();
-        repositionBlocks();
-      }
+        if (window.innerWidth < 500 && maxGridWidth != 300) {
+            maxGridWidth = 300;
+            await tick();
+            setBlockDefaultPositions();
+            repositionBlocks();
+        } else if (window.innerWidth >= 500 && maxGridWidth != 400) {
+            maxGridWidth = 400;
+            await tick();
+            setBlockDefaultPositions();
+            repositionBlocks();
+        }
     }
 </script>
 
@@ -891,7 +904,7 @@
     />
 </header>
 
-<svelte:window onresize={onResize}></svelte:window>
+<svelte:window onresize={onResize} />
 
 <main>
     <div class="game-wrapper">
@@ -946,11 +959,11 @@
                             "px"}
                         style:--block-position-y={block.cssPosition.current.y +
                             "px"}
-                            style:--shadow-color={block.color
-                                .darken(0.5)
-                                .hex() as any as string}
-                            style:left={"0px"}
-                            bind:this={block.blockEl}
+                        style:--shadow-color={block.color
+                            .darken(0.5)
+                            .hex() as any as string}
+                        style:left={"0px"}
+                        bind:this={block.blockEl}
                     >
                         <div
                             class="game-block"
@@ -1177,39 +1190,38 @@
                         </div>
                     </div>
                 {/each}
-                <div class="preview-mask-wrapper"
-                    style:width={
-                    60 + 
-                    gridX * gridBlockWidth + "px"
-                    }
-                    style:height={
-                    60 + 
-                    gridY * gridBlockHeight + "px"
-                    }>
-                {#if currentlyHovering && selectedBlock != null}
-                    {@const block = selectedBlock}
-                    {@const bounds = boundsOfArray([
-                        ...block.parts.map((p) => ({
-                            x: currentHoveringPlacement.x + p.x,
-                            y: currentHoveringPlacement.y + p.y,
-                        })),
-                    ])}
-                    <div
-                        class="game-block-drop-preview"
-                        style:width={(bounds.absolute.maxX + 1) *
-                            gridBlockWidth +
-                            "px"}
-                        style:height={(bounds.absolute.maxY + 1) *
-                            gridBlockHeight +
-                            "px"}
-                        style:top={"0px"}
-                        style:--block-position-x={currentHoveringPlacement.x * gridBlockWidth + 30+
-                            "px"}
-                        style:--block-position-y={currentHoveringPlacement.y * gridBlockHeight + 30 +
-                            "px"}
-                            
-                        style:left={"0px"}
-                    >
+                <div
+                    class="preview-mask-wrapper"
+                    style:width={60 + gridX * gridBlockWidth + "px"}
+                    style:height={60 + gridY * gridBlockHeight + "px"}
+                >
+                    {#if currentlyHovering && selectedBlock != null}
+                        {@const block = selectedBlock}
+                        {@const bounds = boundsOfArray([
+                            ...block.parts.map((p) => ({
+                                x: currentHoveringPlacement.x + p.x,
+                                y: currentHoveringPlacement.y + p.y,
+                            })),
+                        ])}
+                        <div
+                            class="game-block-drop-preview"
+                            style:width={(bounds.absolute.maxX + 1) *
+                                gridBlockWidth +
+                                "px"}
+                            style:height={(bounds.absolute.maxY + 1) *
+                                gridBlockHeight +
+                                "px"}
+                            style:top={"0px"}
+                            style:--block-position-x={currentHoveringPlacement.x *
+                                gridBlockWidth +
+                                30 +
+                                "px"}
+                            style:--block-position-y={currentHoveringPlacement.y *
+                                gridBlockHeight +
+                                30 +
+                                "px"}
+                            style:left={"0px"}
+                        >
                             <svg
                                 width={(bounds.absolute.maxX + 1) *
                                     gridBlockWidth}
@@ -1235,8 +1247,7 @@
                                                 class="game-block-cell"
                                                 d={`M ${(pair.x1 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
                                                 stroke-width={gridBlockWidth -
-                                                  previewHoverPadding *
-                                                      2}
+                                                    previewHoverPadding * 2}
                                                 stroke={"white"}
                                             ></path>
                                         {/each}
@@ -1260,25 +1271,25 @@
                                                 height={gridBlockHeight -
                                                     previewHoverPadding * 2}
                                                 fill={"white"}
-                                               
                                             ></rect>
                                         {/each}
-                                        
+
                                         {#each block.cardinalTwoPairs as pair}
                                             <path
                                                 class="game-block-cell"
                                                 d={`M ${(pair.x1 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
                                                 stroke-width={gridBlockWidth -
-                                                  previewOutlineWidth *
-                                                      2}
+                                                    previewOutlineWidth * 2}
                                                 stroke={"#333"}
                                             ></path>
                                         {/each}
                                         {#each block.parts as part}
                                             <rect
                                                 class="game-block-cell"
-                                                rx={blockRoundness - previewOutlineWidth}
-                                                ry={blockRoundness - previewOutlineWidth}
+                                                rx={blockRoundness -
+                                                    previewOutlineWidth}
+                                                ry={blockRoundness -
+                                                    previewOutlineWidth}
                                                 x={(currentHoveringPlacement.x +
                                                     part.x -
                                                     bounds.relative.minX) *
@@ -1294,35 +1305,36 @@
                                                 height={gridBlockHeight -
                                                     previewOutlineWidth * 2}
                                                 fill={"#333"}
-                                               
                                             ></rect>
                                         {/each}
                                     </mask>
                                 </defs>
                                 <g>
-                                    <g >
-                                       <rect 
-                                           class="block-fill-preview"
-                                           mask="url(#block-mask-drop-preview)"
-                                           x="0"
-                                           y="0"
-                                           width={(bounds.absolute.maxX + 1) *
-                                               gridBlockWidth}
-                                           height={(bounds.absolute.maxY + 1) *
-                                               gridBlockHeight} 
-                                               fill={currentPlacementInvalid ? "var(--error)" : "var(--success)"}></rect>
+                                    <g>
+                                        <rect
+                                            class="block-fill-preview"
+                                            mask="url(#block-mask-drop-preview)"
+                                            x="0"
+                                            y="0"
+                                            width={(bounds.absolute.maxX + 1) *
+                                                gridBlockWidth}
+                                            height={(bounds.absolute.maxY + 1) *
+                                                gridBlockHeight}
+                                            fill={currentPlacementInvalid
+                                                ? "var(--error)"
+                                                : "var(--success)"}
+                                        ></rect>
                                     </g>
                                 </g>
                             </svg>
                         </div>
-                {/if}
+                    {/if}
                 </div>
                 <div class="game-actual-grid">
                     {#each Array(gridY) as _, y}
                         {#each Array(gridX) as _, x}
                             {#key blocks}
                                 <div
-                                    class:temp-hovering={hoveringSpaces[x][y]}
                                     class="game-grid-cell"
                                     style:grid-column={x + 1}
                                     style:grid-row={y + 1}
@@ -1333,7 +1345,7 @@
                     {/each}
                 </div>
                 <div class="game-block-selectors">
-                    {#each blocks as b, i}
+                    {#each blocks as b, i (b.id)}
                         {#if !b.locked}
                             <div
                                 class="block-selector-zone"
@@ -1505,16 +1517,44 @@
         overflow: hidden;
         mask-mode: luminance;
         mask-composite: intersect;
-        mask-image: linear-gradient(to right, black, white 40px, white calc(100% - 40px), black), linear-gradient(to bottom, black, white 40px, white calc(100% - 40px), black);
+        mask-image:
+            linear-gradient(
+                to right,
+                black,
+                white 40px,
+                white calc(100% - 40px),
+                black
+            ),
+            linear-gradient(
+                to bottom,
+                black,
+                white 40px,
+                white calc(100% - 40px),
+                black
+            );
         -webkit-mask-mode: luminance;
         -webkit-mask-composite: intersect;
-        -webkit-mask-image: linear-gradient(to right, black, white 40px, white calc(100% - 40px), black), linear-gradient(to bottom, black, white 40px, white calc(100% - 40px), black);
+        -webkit-mask-image:
+            linear-gradient(
+                to right,
+                black,
+                white 40px,
+                white calc(100% - 40px),
+                black
+            ),
+            linear-gradient(
+                to bottom,
+                black,
+                white 40px,
+                white calc(100% - 40px),
+                black
+            );
     }
     @media (max-width: 500px) {
         .game-block-selectable .game-block {
             --scale-mult: 0.55;
         }
-        
+
         .game-block.block-dragging {
             --scale-mult: 0.8;
         }
