@@ -23,9 +23,10 @@
 
     let path: { x: number; y: number }[] = $state([{ x: -10, y: -10 }]);
     let difficulties = [
-        { gridX: 6, gridY: 6, waypoints: 2 , rdx: 1},
-        { gridX: 7, gridY: 7, waypoints: 6 , rdx: 8},
-        { gridX: 8, gridY: 8, waypoints: 12, rdx: 24 },
+        { gridX: 6, gridY: 6, waypoints: 2, rdx: 1 },
+        { gridX: 7, gridY: 7, waypoints: 6, rdx: 8 },
+        { gridX: 8, gridY: 8, waypoints: 8, rdx: 24 },
+        { gridX: 8, gridY: 8, waypoints: 12, rdx: 55 },
     ];
     type Block = {
         position: { x: number; y: number };
@@ -36,8 +37,10 @@
         color: Color;
         id: string;
         dragging: boolean;
+        animDelay: string;
         blockHome: HTMLElement | null;
         blockEl: HTMLElement | null;
+        isCurrentlyAnimating: boolean;
         cssPosition: Spring<{ x: number; y: number }>;
         cardinalTwoPairs: { x1: number; y1: number; x2: number; y2: number }[]; // pairs of cardinal parts that are both in the block, used for validation
         signalPath: { x: number; y: number }[]; //the part of the signal path that is contained in this block, used for validation
@@ -47,6 +50,8 @@
     onMount(async () => {
         initializeGame(difficulties[2]);
         window.initGame = initializeGame;
+        //@ts-ignore
+        window.gameCompleteEffect = gameCompleteEffect;
     });
     async function initializeGame(difficulty: {
         gridX: number;
@@ -62,14 +67,14 @@
             DTGCore.randomFloat();
         }
         window.DTGCore = DTGCore;
-        
+
         for (let i = 0; i < gridX; i++) {
             occupiedSpaces[i] = new Array(gridY).fill(false);
         }
         for (let i = 0; i < gridX; i++) {
             hoveringSpaces[i] = new Array(gridY).fill(false);
         }
-        
+
         generateCorrectPath();
         generateBlocks();
         await tick();
@@ -245,7 +250,9 @@
         return path.findIndex((p) => p.x == sink.x && p.y == sink.y) != -1;
     }
 
-    let springProperties: any = {};
+    let springProperties: any = {
+      precision: 0.1
+    };
 
     function generateBlocks() {
         blocks = [];
@@ -273,9 +280,11 @@
             cardinalTwoPairs: [],
             id: genRandomId(),
             placed: false,
+            animDelay: `${Math.random() * 4}s`,
             locked: false,
             blockHome: null,
             blockEl: null,
+            isCurrentlyAnimating: false,
             cssPosition: new Spring({ x: 0, y: 0 }, springProperties),
         });
         blocks.push({
@@ -285,9 +294,11 @@
             color: colors[1],
             signalPath: [],
             dragging: false,
+            animDelay: `${Math.random() * 4}s`,
             cardinalTwoPairs: [],
             id: genRandomId(),
             placed: false,
+            isCurrentlyAnimating: false,
             locked: false,
             blockHome: null,
             blockEl: null,
@@ -303,8 +314,10 @@
             id: genRandomId(),
             dragging: false,
             placed: false,
+            animDelay: `${Math.random() * 4}s`,
             locked: false,
             blockEl: null,
+            isCurrentlyAnimating: false,
             blockHome: null,
             cssPosition: new Spring({ x: 0, y: 0 }, springProperties),
         });
@@ -316,7 +329,9 @@
             color: colors[3],
             signalPath: [],
             cardinalTwoPairs: [],
+            isCurrentlyAnimating: false,
             id: genRandomId(),
+            animDelay: `${Math.random() * 4}s`,
             placed: false,
             blockEl: null,
             locked: false,
@@ -366,9 +381,11 @@
                 id: genRandomId(),
                 placed: false,
                 dragging: false,
+                animDelay: `${Math.random() * 4}s`,
                 locked: false,
                 blockHome: null,
                 blockEl: null,
+                isCurrentlyAnimating: false,
                 cssPosition: new Spring({ x: 0, y: 0 }, springProperties),
             });
             occupied.push({ ...p });
@@ -550,6 +567,30 @@
         e.preventDefault();
         selectedBlock = block;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+        if (
+            selectedBlock != null &&
+            !selectedBlock.locked &&
+            !selectedBlock.placed &&
+            selectedBlock.blockHome != null &&
+            gameGrid != null &&
+            selectedBlock.blockEl != null
+        ) {
+            //set the blocks position to the center of its blockhome;
+            let rect = selectedBlock.blockHome.getBoundingClientRect();
+            let bRect = selectedBlock.blockEl.getBoundingClientRect();
+            let grid = gameGrid.getBoundingClientRect();
+            selectedBlock.cssPosition.set(
+                {
+                    x: rect.left - grid.left + rect.width / 2 - bRect.width / 2,
+                    y: rect.top - grid.top + rect.height / 2 - bRect.height / 2,
+                },
+                { instant: true },
+            );
+        }
+        
+        selectedBlock.isCurrentlyAnimating = true;
+
         pPointer = { x: e.clientX, y: e.clientY };
 
         for (let x = 0; x < gridX; x++) {
@@ -585,7 +626,9 @@
             x: e.clientX - grid.left - bRect.width / 2,
             y: e.clientY - grid.top - bRect.height / 2,
         });
-        dragSway = e.clientX - pPointer.x;
+        selectedBlock.isCurrentlyAnimating = true;
+        let sign = Math.sign(e.clientX - pPointer.x);
+        dragSway = Math.min(Math.abs(e.clientX - pPointer.x), 26) * sign;
         pPointer = { x: e.clientX, y: e.clientY };
         /// now calculating the hovering spaces
         for (let x = 0; x < gridX; x++) {
@@ -676,14 +719,20 @@
                 let bRect = selectedBlock.blockEl.getBoundingClientRect();
                 let grid = gameGrid.getBoundingClientRect();
                 selectedBlock.placed = false;
-                selectedBlock.cssPosition.set({
+                deAnimateSelectedBlock(selectedBlock, {
                     x: rect.left - grid.left + rect.width / 2 - bRect.width / 2,
                     y: rect.top - grid.top + rect.height / 2 - bRect.height / 2,
-                });
+                })
             }
         }
         selectedBlock = null;
     }
+    
+    async function deAnimateSelectedBlock (block: Block, pos: {x: number, y: number}) {
+      await block.cssPosition.set(pos)
+      block.isCurrentlyAnimating = false;
+    }
+    
 
     let occupiedSpaces: boolean[][] = $state(new Array(gridX));
 
@@ -785,8 +834,6 @@
         });
     }
 
-    let verticalBlockPadding = 7;
-    let horizontalBlockPadding = 2;
     function boundsOfArray(arr: { x: number; y: number }[]) {
         let minX = Infinity;
         let maxX = -Infinity;
@@ -872,24 +919,61 @@
     // we then just need to check and make sure that al blocks are placed somewhere.
     function validateWin() {}
 
-    let strokePadding = 7;
-    let blockRoundness = 10;
+    let strokePadding = 4;
+    let blockRoundness = $state(12);
 
     let previewHoverPadding = 0;
     let previewOutlineWidth = 4;
+    let verticalBlockPadding = $state(7);
+    let horizontalBlockPadding = $state(2);
+    let blockPathWidth = $state(16);
 
     async function onResize() {
-        if (window.innerWidth < 500 && maxGridWidth != 300) {
+        if (window.innerWidth <= 500 && maxGridWidth != 300) {
             maxGridWidth = 300;
+            verticalBlockPadding = 6;
+            horizontalBlockPadding = 1;
+            await tick();
+            await tick();
+            await tick();
             await tick();
             setBlockDefaultPositions();
             repositionBlocks();
-        } else if (window.innerWidth >= 500 && maxGridWidth != 400) {
+            blockPathWidth = 12;
+            blockRoundness = 8
+        } else if (window.innerWidth > 500 && maxGridWidth != 400) {
             maxGridWidth = 400;
+            verticalBlockPadding = 7;
+            horizontalBlockPadding = 2;
+            await tick();
+            await tick();
+            await tick();
             await tick();
             setBlockDefaultPositions();
             repositionBlocks();
+            blockPathWidth = 16;
+            blockRoundness = 12
         }
+    }
+    
+    let gameDoneState = $state(false);
+    let gameDoneSpring = new Spring(1, {
+      stiffness: 0.15,
+      damping: .22,
+      precision: 0.0001
+    })
+    
+    function gameCompleteEffect() {
+      blockRoundness = 6;
+        gameDoneState = true;
+        verticalBlockPadding = 0;
+        horizontalBlockPadding = 0;
+        gameDoneSpring.set(1.05)
+        setTimeout(()=>{
+          gameDoneSpring.set(1, {
+            preserveMomentum: 1
+          })
+        },100)
     }
 </script>
 
@@ -938,258 +1022,6 @@
                         fill="transparent"
                     ></path>
                 </svg>
-                {#each blocks as block}
-                    {@const bounds = boundsOfArray([
-                        ...block.parts.map((p) => ({
-                            x: block.truthPosition.x + p.x,
-                            y: block.truthPosition.y + p.y,
-                        })),
-                    ])}
-                    <div
-                        class="game-block-shadow-wrapper"
-                        class:game-block-selectable={!block.placed}
-                        style:width={(bounds.absolute.maxX + 1) *
-                            gridBlockWidth +
-                            "px"}
-                        style:height={(bounds.absolute.maxY + 1) *
-                            gridBlockHeight +
-                            "px"}
-                        style:top={"0px"}
-                        style:--block-position-x={block.cssPosition.current.x +
-                            "px"}
-                        style:--block-position-y={block.cssPosition.current.y +
-                            "px"}
-                        style:--shadow-color={block.color
-                            .darken(0.5)
-                            .hex() as any as string}
-                        style:left={"0px"}
-                        bind:this={block.blockEl}
-                    >
-                        <div
-                            class="game-block"
-                            class:block-dragging={block.dragging}
-                            style:animation-delay={`${Math.random() * 4}s`}
-                            class:game-block-locked={block.locked}
-                            style:width={(bounds.absolute.maxX + 1) *
-                                gridBlockWidth +
-                                "px"}
-                            style:height={(bounds.absolute.maxY + 1) *
-                                gridBlockHeight +
-                                "px"}
-                            style:--shadow-color={block.color
-                                .darken(0.5)
-                                .hex() as any as string}
-                            style:--sway-angle={block.dragging
-                                ? `${dragSway * 2}deg`
-                                : "0deg"}
-                            onpointerdown={(e) => {
-                                blockPointerDown(block, e);
-                            }}
-                            onpointermove={pointerMove}
-                            onpointerup={pointerUp}
-                            tabindex="-1"
-                            role="button"
-                        >
-                            <svg
-                                class="game-block-svg"
-                                width={(bounds.absolute.maxX + 1) *
-                                    gridBlockWidth}
-                                height={(bounds.absolute.maxY + 1) *
-                                    gridBlockHeight}
-                                viewBox={`0 0 ${(bounds.absolute.maxX + 1) * gridBlockWidth} ${
-                                    (bounds.absolute.maxY + 1) * gridBlockHeight
-                                }`}
-                            >
-                                <defs>
-                                    <mask
-                                        id={`block-mask-${block.id}`}
-                                        maskUnits="userSpaceOnUse"
-                                        x="0"
-                                        y="0"
-                                        width={(bounds.absolute.maxX + 1) *
-                                            gridBlockWidth}
-                                        height={(bounds.absolute.maxY + 1) *
-                                            gridBlockHeight}
-                                    >
-                                        <g>
-                                            {#each block.cardinalTwoPairs as pair}
-                                                <path
-                                                    class="game-block-cell"
-                                                    d={`M ${(pair.x1 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
-                                                    stroke-width={pair.x1 ==
-                                                    pair.x2
-                                                        ? gridBlockWidth -
-                                                          horizontalBlockPadding *
-                                                              2
-                                                        : gridBlockHeight -
-                                                          verticalBlockPadding *
-                                                              2}
-                                                    stroke="white"
-                                                    fill="transparent"
-                                                ></path>
-                                            {/each}
-                                            {#each block.parts as part}
-                                                <rect
-                                                    class="game-block-cell"
-                                                    rx="8"
-                                                    ry="8"
-                                                    x={(block.truthPosition.x +
-                                                        part.x -
-                                                        bounds.relative.minX) *
-                                                        gridBlockWidth +
-                                                        horizontalBlockPadding}
-                                                    y={(block.truthPosition.y +
-                                                        part.y -
-                                                        bounds.relative.minY) *
-                                                        gridBlockHeight +
-                                                        verticalBlockPadding}
-                                                    width={gridBlockWidth -
-                                                        horizontalBlockPadding *
-                                                            2}
-                                                    height={gridBlockHeight -
-                                                        verticalBlockPadding *
-                                                            2}
-                                                    fill="white"
-                                                ></rect>
-                                            {/each}
-                                        </g>
-                                    </mask>
-                                </defs>
-                                <g>
-                                    <g>
-                                        {#each block.cardinalTwoPairs as pair}
-                                            <path
-                                                class="game-block-cell"
-                                                d={`M ${(pair.x1 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
-                                                stroke-width={pair.x1 == pair.x2
-                                                    ? gridBlockWidth -
-                                                      horizontalBlockPadding * 2
-                                                    : gridBlockHeight -
-                                                      verticalBlockPadding * 2}
-                                                stroke={block.color.hex() as any as string}
-                                            ></path>
-                                        {/each}
-                                        {#each block.parts as part}
-                                            <rect
-                                                class="game-block-cell"
-                                                rx={blockRoundness}
-                                                ry={blockRoundness}
-                                                x={(block.truthPosition.x +
-                                                    part.x -
-                                                    bounds.relative.minX) *
-                                                    gridBlockWidth +
-                                                    horizontalBlockPadding}
-                                                y={(block.truthPosition.y +
-                                                    part.y -
-                                                    bounds.relative.minY) *
-                                                    gridBlockHeight +
-                                                    verticalBlockPadding}
-                                                width={gridBlockWidth -
-                                                    horizontalBlockPadding * 2}
-                                                height={gridBlockHeight -
-                                                    verticalBlockPadding * 2}
-                                                fill={block.color.hex() as any as string}
-                                            ></rect>
-                                        {/each}
-                                        {#each block.parts as part}
-                                            <rect
-                                                class="game-block-cell"
-                                                rx={blockRoundness -
-                                                    strokePadding}
-                                                ry={blockRoundness -
-                                                    strokePadding}
-                                                x={(block.truthPosition.x +
-                                                    part.x -
-                                                    bounds.relative.minX) *
-                                                    gridBlockWidth +
-                                                    strokePadding +
-                                                    horizontalBlockPadding}
-                                                y={(block.truthPosition.y +
-                                                    part.y -
-                                                    bounds.relative.minY) *
-                                                    gridBlockHeight +
-                                                    strokePadding +
-                                                    verticalBlockPadding}
-                                                width={gridBlockWidth -
-                                                    horizontalBlockPadding * 2 -
-                                                    strokePadding * 2}
-                                                height={gridBlockHeight -
-                                                    verticalBlockPadding * 2 -
-                                                    strokePadding * 2}
-                                                stroke={block.color
-                                                    .brighten(0.4)
-                                                    .hex() as any as string}
-                                                stroke-width="4"
-                                                fill="transparent"
-                                            ></rect>
-                                        {/each}
-
-                                        {#each block.cardinalTwoPairs as pair}
-                                            <path
-                                                class="game-block-cell"
-                                                d={`M ${(pair.x1 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
-                                                stroke-width={(pair.x1 ==
-                                                pair.x2
-                                                    ? gridBlockWidth -
-                                                      horizontalBlockPadding * 2
-                                                    : gridBlockHeight -
-                                                      verticalBlockPadding *
-                                                          2) - 10}
-                                                stroke={block.color
-                                                    .brighten(0.4)
-                                                    .hex() as any as string}
-                                            ></path>
-                                        {/each}
-                                        {#each block.cardinalTwoPairs as pair}
-                                            <path
-                                                class="game-block-cell"
-                                                d={`M ${(pair.x1 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
-                                                stroke-width={(pair.x1 ==
-                                                pair.x2
-                                                    ? gridBlockWidth -
-                                                      horizontalBlockPadding * 2
-                                                    : gridBlockHeight -
-                                                      verticalBlockPadding *
-                                                          2) - 18}
-                                                stroke={block.color.hex() as any as string}
-                                            ></path>
-                                        {/each}
-                                    </g>
-                                    <path
-                                        mask={`url(#block-mask-${block.id})`}
-                                        d={`M ${(path[0].x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(path[0].y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} ` +
-                                            path
-                                                .map(
-                                                    (p) =>
-                                                        `L ${(p.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(p.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} `,
-                                                )
-                                                .join(" ")}
-                                        stroke-width="24px"
-                                        stroke={block.color.brighten(1.2).hex()}
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        fill="transparent"
-                                    ></path>
-                                    <path
-                                        mask={`url(#block-mask-${block.id})`}
-                                        d={`M ${(path[0].x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(path[0].y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} ` +
-                                            path
-                                                .map(
-                                                    (p) =>
-                                                        `L ${(p.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(p.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} `,
-                                                )
-                                                .join(" ")}
-                                        stroke-width="16px"
-                                        stroke={block.color.darken(1.8).hex()}
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        fill="transparent"
-                                    ></path>
-                                </g>
-                            </svg>
-                        </div>
-                    </div>
-                {/each}
                 <div
                     class="preview-mask-wrapper"
                     style:width={60 + gridX * gridBlockWidth + "px"}
@@ -1340,26 +1172,311 @@
                                     style:grid-row={y + 1}
                                     style:width="{gridBlockWidth}px"
                                     style:height="{gridBlockHeight}px"
+                                    style:border-radius={`${blockRoundness}px`}
                                 ></div>{/key}
                         {/each}
                     {/each}
                 </div>
                 <div class="game-block-selectors">
-                    {#each blocks as b, i (b.id)}
-                        {#if !b.locked}
+                    {#each blocks as block, i (block.id)}
+                        {@const bounds = boundsOfArray([
+                            ...block.parts.map((p) => ({
+                                x: block.truthPosition.x + p.x,
+                                y: block.truthPosition.y + p.y,
+                            })),
+                        ])}
+                        {#if !block.locked}
                             <div
                                 class="block-selector-zone"
                                 bind:this={blocks[i].blockHome}
-                            ></div>
+                                style:pointer-events="none"
+                            >
+                                {#if !block.placed}
+                                    <div
+                                        style:opacity={(block.dragging || block.isCurrentlyAnimating)
+                                            ? "0"
+                                            : "1"}
+                                        class="game-block-shadow-wrapper"
+                                        class:game-block-selectable={true}
+                                        style:width={(bounds.absolute.maxX +
+                                            1) *
+                                            gridBlockWidth +
+                                            "px"}
+                                        style:height={(bounds.absolute.maxY +
+                                            1) *
+                                            gridBlockHeight +
+                                            "px"}
+                                        style:top={"50%"}
+                                        style:--block-position-x={"-50%"}
+                                        style:--block-position-y={"-50%"}
+                                        style:left={"50%"}
+                                        style:--shadow-color={block.color
+                                            .darken(0.5)
+                                            .hex() as any as string}
+                                    >
+                                        {@render blockSVG(block)}
+                                    </div>
+                                {/if}
+                            </div>
                         {/if}
                     {/each}
+                </div>
+                <div class="grid-wrapper-scale"
+                    style:transform={`scale(${gameDoneSpring.current})`}
+                    style:width={`${gridBlockWidth * gridX}px`}
+                    style:height={`${gridBlockHeight * gridY}px`}>
+                {#each blocks as block}
+                    {@const bounds = boundsOfArray([
+                        ...block.parts.map((p) => ({
+                            x: block.truthPosition.x + p.x,
+                            y: block.truthPosition.y + p.y,
+                        })),
+                    ])}
+                    <div
+                        style:opacity={(block.dragging || block.placed || block.isCurrentlyAnimating)
+                            ? "1"
+                            : "0"}
+                        class:ignore-all-events={!block.placed}
+                        class="game-block-shadow-wrapper"
+                        class:game-complete-block={gameDoneState}
+                        class:game-block-selectable={!block.placed}
+                        style:width={(bounds.absolute.maxX + 1) *
+                            gridBlockWidth +
+                            "px"}
+                        style:height={(bounds.absolute.maxY + 1) *
+                            gridBlockHeight +
+                            "px"}
+                        style:top={"0px"}
+                        style:--block-position-x={block.cssPosition.current.x +
+                            "px"}
+                        style:--block-position-y={block.cssPosition.current.y +
+                            "px"}
+                        style:left={"0px"}
+                        style:--shadow-color={block.color
+                            .darken(0.5)
+                            .hex() as any as string}
+                        bind:this={block.blockEl}
+                    >
+                        {@render blockSVG(block)}
+                    </div>
+                {/each}
                 </div>
             </div>
         </div>
     </div>
 </main>
 
+{#snippet blockSVG(block: Block)}
+    {@const bounds = boundsOfArray([
+        ...block.parts.map((p) => ({
+            x: block.truthPosition.x + p.x,
+            y: block.truthPosition.y + p.y,
+        })),
+    ])}
+    <div
+        class="game-block"
+        class:block-dragging={block.dragging}
+        style:animation-delay={block.animDelay}
+        class:game-block-locked={block.locked}
+        style:width={(bounds.absolute.maxX + 1) * gridBlockWidth + "px"}
+        style:height={(bounds.absolute.maxY + 1) * gridBlockHeight + "px"}
+        style:--shadow-color={block.color.darken(0.5).hex() as any as string}
+        style:--sway-angle={block.dragging ? `${dragSway * 2}deg` : "0deg"}
+        onpointerdown={(e) => {
+            blockPointerDown(block, e);
+        }}
+        onpointermove={pointerMove}
+        onpointerup={pointerUp}
+        tabindex="-1"
+        role="button"
+    >
+        <svg
+            class="game-block-svg"
+            width={(bounds.absolute.maxX + 1) * gridBlockWidth}
+            height={(bounds.absolute.maxY + 1) * gridBlockHeight}
+            viewBox={`0 0 ${(bounds.absolute.maxX + 1) * gridBlockWidth} ${
+                (bounds.absolute.maxY + 1) * gridBlockHeight
+            }`}
+        >
+            <defs>
+                <mask
+                    id={`block-mask-${block.id}`}
+                    maskUnits="userSpaceOnUse"
+                    x="0"
+                    y="0"
+                    width={(bounds.absolute.maxX + 1) * gridBlockWidth}
+                    height={(bounds.absolute.maxY + 1) * gridBlockHeight}
+                >
+                    <g>
+                        {#each block.cardinalTwoPairs as pair}
+                            <path
+                                class="game-block-cell"
+                                d={`M ${(pair.x1 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
+                                stroke-width={pair.x1 == pair.x2
+                                    ? gridBlockWidth -
+                                      horizontalBlockPadding * 2
+                                    : gridBlockHeight -
+                                      verticalBlockPadding * 2}
+                                stroke="white"
+                                fill="transparent"
+                            ></path>
+                        {/each}
+                        {#each block.parts as part}
+                            <rect
+                                class="game-block-cell"
+                                rx={blockRoundness}
+                                ry={blockRoundness}
+                                x={(block.truthPosition.x +
+                                    part.x -
+                                    bounds.relative.minX) *
+                                    gridBlockWidth +
+                                    horizontalBlockPadding}
+                                y={(block.truthPosition.y +
+                                    part.y -
+                                    bounds.relative.minY) *
+                                    gridBlockHeight +
+                                    verticalBlockPadding}
+                                width={gridBlockWidth -
+                                    horizontalBlockPadding * 2}
+                                height={gridBlockHeight -
+                                    verticalBlockPadding * 2}
+                                fill="white"
+                            ></rect>
+                        {/each}
+                    </g>
+                </mask>
+            </defs>
+            <g>
+                <g>
+                    {#each block.cardinalTwoPairs as pair}
+                        <path
+                            class="game-block-cell"
+                            d={`M ${(pair.x1 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
+                            stroke-width={pair.x1 == pair.x2
+                                ? gridBlockWidth - horizontalBlockPadding * 2
+                                : gridBlockHeight - verticalBlockPadding * 2}
+                            stroke={block.color.hex() as any as string}
+                        ></path>
+                    {/each}
+                    {#each block.parts as part}
+                        <rect
+                            class="game-block-cell"
+                            rx={blockRoundness}
+                            ry={blockRoundness}
+                            x={(block.truthPosition.x +
+                                part.x -
+                                bounds.relative.minX) *
+                                gridBlockWidth +
+                                horizontalBlockPadding}
+                            y={(block.truthPosition.y +
+                                part.y -
+                                bounds.relative.minY) *
+                                gridBlockHeight +
+                                verticalBlockPadding}
+                            width={gridBlockWidth - horizontalBlockPadding * 2}
+                            height={gridBlockHeight - verticalBlockPadding * 2}
+                            fill={block.color.hex() as any as string}
+                        ></rect>
+                    {/each}
+                    {#each block.parts as part}
+                        <rect
+                            class="game-block-cell"
+                            rx={blockRoundness - strokePadding}
+                            ry={blockRoundness - strokePadding}
+                            x={(block.truthPosition.x +
+                                part.x -
+                                bounds.relative.minX) *
+                                gridBlockWidth +
+                                strokePadding +
+                                horizontalBlockPadding}
+                            y={(block.truthPosition.y +
+                                part.y -
+                                bounds.relative.minY) *
+                                gridBlockHeight +
+                                strokePadding +
+                                verticalBlockPadding}
+                            width={gridBlockWidth -
+                                horizontalBlockPadding * 2 -
+                                strokePadding * 2}
+                            height={gridBlockHeight -
+                                verticalBlockPadding * 2 -
+                                strokePadding * 2}
+                            stroke={block.color
+                                .brighten(0.4)
+                                .hex() as any as string}
+                            stroke-width="4"
+                            fill="transparent"
+                        ></rect>
+                    {/each}
+
+                    {#each block.cardinalTwoPairs as pair}
+                        <path
+                            class="game-block-cell"
+                            d={`M ${(pair.x1 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
+                            stroke-width={(pair.x1 == pair.x2
+                                ? gridBlockWidth - horizontalBlockPadding * 2
+                                : gridBlockHeight - verticalBlockPadding * 2) -
+                                (strokePadding - 2) * 2}
+                            stroke={block.color
+                                .brighten(0.4)
+                                .hex() as any as string}
+                        ></path>
+                    {/each}
+                    {#each block.cardinalTwoPairs as pair}
+                        <path
+                            class="game-block-cell"
+                            d={`M ${(pair.x1 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + block.truthPosition.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + block.truthPosition.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
+                            stroke-width={(pair.x1 == pair.x2
+                                ? gridBlockWidth - horizontalBlockPadding * 2
+                                : gridBlockHeight - verticalBlockPadding * 2) -
+                                (strokePadding + 2) * 2}
+                            stroke={block.color.hex() as any as string}
+                        ></path>
+                    {/each}
+                </g>
+                <path
+                    mask={`url(#block-mask-${block.id})`}
+                    d={`M ${(path[0].x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(path[0].y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} ` +
+                        path
+                            .map(
+                                (p) =>
+                                    `L ${(p.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(p.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} `,
+                            )
+                            .join(" ")}
+                    stroke-width={blockPathWidth + 8}
+                    stroke={block.color.brighten(1.2).hex()}
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    fill="transparent"
+                ></path>
+                <path
+                    mask={`url(#block-mask-${block.id})`}
+                    d={`M ${(path[0].x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(path[0].y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} ` +
+                        path
+                            .map(
+                                (p) =>
+                                    `L ${(p.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(p.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} `,
+                            )
+                            .join(" ")}
+                    stroke-width={blockPathWidth}
+                    stroke={block.color.darken(1.8).hex()}
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    fill="transparent"
+                ></path>
+            </g>
+        </svg>
+    </div>
+{/snippet}
+
 <style>
+    
+    .grid-wrapper-scale {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index:999999999;
+    }
     .game-zone {
         display: flex;
         flex-direction: column;
@@ -1388,20 +1505,26 @@
         height: 70px;
         background: var(--raised-surface);
         border-radius: 100%;
+        position: relative;
+        z-index: 1;
+        pointer-events: none;
     }
     .game-block-selectors {
         width: 100%;
 
-        display: flex;
-        flex-wrap: wrap;
         gap: 8px;
-        justify-content: center;
-        align-items: center;
-        margin-top: 30px;
+        margin-top: 0px;
+        padding: 30px 0px;
+        overflow-x: auto;
+        overflow-y: hidden;
+
+        display: grid;
+        grid-template-rows: repeat(2, auto);
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
     }
     .game-grid-cell {
         background: var(--raised-surface);
-        border-radius: 12px;
         border: 2px solid var(--body-background);
         box-sizing: border-box;
     }
@@ -1415,7 +1538,7 @@
     }
     .game-block-cell {
         cursor: grab;
-        pointer-events: all !important;
+        pointer-events: all;
     }
     .game-block-locked .game-block-cell {
         cursor: not-allowed !important;
@@ -1484,6 +1607,7 @@
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color));
+            z-index: 9999999999999;
     }
     .game-block.block-dragging {
         --scale-mult: 0.7;
@@ -1562,5 +1686,21 @@
             width: 80px;
             height: 80px;
         }
+    }
+
+    .ignore-all-events *,
+    .ignore-all-events {
+        pointer-events: none !important;
+    }
+    .game-complete-block {
+        filter: none;
+        transform: translate(
+            var(--block-position-x),
+            calc(var(--block-position-y))
+        );
+        pointer-events: none;   
+    }
+    .game-complete-block *  {
+        pointer-events: none !important;
     }
 </style>

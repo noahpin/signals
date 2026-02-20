@@ -12,7 +12,8 @@ declare global {
 declare global {
 	interface Window {
     DTGCore: DTGameCore;
-    initGame: () => {};
+    initGame: (any) => {};
+  
 	}
 }
 
