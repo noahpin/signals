@@ -46,6 +46,7 @@
         signalPath: { x: number; y: number }[]; //the part of the signal path that is contained in this block, used for validation
     };
     let blocks: Block[] = $state([]);
+    let gameBlockSelectors: HTMLElement | null = $state(null);
 
     onMount(async () => {
         initializeGame(difficulties[2]);
@@ -563,6 +564,7 @@
     let activelyDragging = $state(false);
     function blockPointerDown(block: Block, e: PointerEvent) {
         e.preventDefault();
+        e.stopPropagation();
         dragSway = 0;
         if (!block) return;
         if (block.locked) return;
@@ -570,6 +572,11 @@
         selectedBlock = block;
         activelyDragging = true;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+        // Disable scrolling on the container during drag
+        if (gameBlockSelectors) {
+            gameBlockSelectors.style.overflowX = "hidden";
+        }
 
         if (
             selectedBlock != null &&
@@ -676,6 +683,11 @@
         currentlyHovering = false;
         e.preventDefault();
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+
+        // Re-enable scrolling on the container
+        if (gameBlockSelectors) {
+            gameBlockSelectors.style.overflowX = "auto";
+        }
         if (
             selectedBlock != null &&
             !selectedBlock.locked &&
@@ -996,11 +1008,7 @@
     />
 </header>
 
-<svelte:window
-    onresize={onResize}
-    onpointermove={pointerMove}
-    onpointerup={pointerUp}
-/>
+<svelte:window onresize={onResize} />
 
 <main>
     <div class="game-wrapper">
@@ -1049,7 +1057,10 @@
                         {/each}
                     {/each}
                 </div>
-                <div class="game-block-selectors">
+                <div
+                    class="game-block-selectors"
+                    bind:this={gameBlockSelectors}
+                >
                     {#each blocks as block, i (block.id)}
                         {@const bounds = boundsOfArray([
                             ...block.parts.map((p) => ({
@@ -1302,6 +1313,12 @@
         onpointerdown={(e) => {
             blockPointerDown(block, e);
         }}
+        onpointermove={(e) => {
+            pointerMove(e);
+        }}
+        onpointerup={(e) => {
+            pointerUp(e);
+        }}
         tabindex="-1"
         role="button"
     >
@@ -1531,7 +1548,6 @@
         padding: 30px 0px;
         overflow-x: auto;
         overflow-y: hidden;
-        touch-action: none;
 
         display: grid;
         grid-template-rows: repeat(2, auto);
