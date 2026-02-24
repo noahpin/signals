@@ -566,7 +566,7 @@
         dragSway = 0;
         if (!block) return;
         if (block.locked) return;
-        if(activelyDragging) return;
+        if (activelyDragging) return;
         selectedBlock = block;
         activelyDragging = true;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -613,7 +613,7 @@
     }
 
     function pointerMove(e: PointerEvent) {
-      if(!activelyDragging) return;
+        if (!activelyDragging) return;
         e.preventDefault();
         if (
             !(e.target as HTMLElement).hasPointerCapture(e.pointerId) ||
@@ -670,8 +670,8 @@
     });
     let currentlyHovering = $state(false);
     function pointerUp(e: PointerEvent) {
-      if(!activelyDragging) return;
-      activelyDragging = false;
+        if (!activelyDragging) return;
+        activelyDragging = false;
         dragSway = 0;
         currentlyHovering = false;
         e.preventDefault();
@@ -996,9 +996,11 @@
     />
 </header>
 
-<svelte:window onresize={onResize} 
+<svelte:window
+    onresize={onResize}
     onpointermove={pointerMove}
-    onpointerup={pointerUp} />
+    onpointerup={pointerUp}
+/>
 
 <main>
     <div class="game-wrapper">
@@ -1032,6 +1034,110 @@
                         fill="transparent"
                     ></path>
                 </svg>
+                <div class="game-actual-grid">
+                    {#each Array(gridY) as _, y}
+                        {#each Array(gridX) as _, x}
+                            {#key blocks}
+                                <div
+                                    class="game-grid-cell"
+                                    style:grid-column={x + 1}
+                                    style:grid-row={y + 1}
+                                    style:width="{gridBlockWidth}px"
+                                    style:height="{gridBlockHeight}px"
+                                    style:border-radius={`${blockRoundness}px`}
+                                ></div>{/key}
+                        {/each}
+                    {/each}
+                </div>
+                <div class="game-block-selectors">
+                    {#each blocks as block, i (block.id)}
+                        {@const bounds = boundsOfArray([
+                            ...block.parts.map((p) => ({
+                                x: block.truthPosition.x + p.x,
+                                y: block.truthPosition.y + p.y,
+                            })),
+                        ])}
+                        {#if !block.locked}
+                            <div
+                                class="block-selector-zone"
+                                bind:this={blocks[i].blockHome}
+                                style:pointer-events="none"
+                            >
+                                {#if !block.placed}
+                                    <div
+                                        style:opacity={block.dragging ||
+                                        block.isCurrentlyAnimating
+                                            ? "0"
+                                            : "1"}
+                                        class="game-block-shadow-wrapper"
+                                        class:game-block-selectable={true}
+                                        style:width={(bounds.absolute.maxX +
+                                            1) *
+                                            gridBlockWidth +
+                                            "px"}
+                                        style:height={(bounds.absolute.maxY +
+                                            1) *
+                                            gridBlockHeight +
+                                            "px"}
+                                        style:top={"50%"}
+                                        style:--block-position-x={"-50%"}
+                                        style:--block-position-y={"-50%"}
+                                        style:left={"50%"}
+                                        style:--shadow-color={block.color
+                                            .darken(0.5)
+                                            .hex() as any as string}
+                                    >
+                                        {@render blockSVG(block)}
+                                    </div>
+                                {/if}
+                            </div>
+                        {/if}
+                    {/each}
+                </div>
+                <div
+                    class="grid-wrapper-scale"
+                    style:transform={`scale(${gameDoneSpring.current})`}
+                    style:width={`${gridBlockWidth * gridX}px`}
+                    style:height={`${gridBlockHeight * gridY}px`}
+                >
+                    {#each blocks as block}
+                        {@const bounds = boundsOfArray([
+                            ...block.parts.map((p) => ({
+                                x: block.truthPosition.x + p.x,
+                                y: block.truthPosition.y + p.y,
+                            })),
+                        ])}
+                        <div
+                            style:opacity={block.dragging ||
+                            block.placed ||
+                            block.isCurrentlyAnimating
+                                ? "1"
+                                : "0"}
+                            class:ignore-all-events={!block.placed}
+                            class="game-block-shadow-wrapper"
+                            class:game-complete-block={gameDoneState}
+                            class:game-block-selectable={!block.placed}
+                            style:width={(bounds.absolute.maxX + 1) *
+                                gridBlockWidth +
+                                "px"}
+                            style:height={(bounds.absolute.maxY + 1) *
+                                gridBlockHeight +
+                                "px"}
+                            style:top={"0px"}
+                            style:--block-position-x={block.cssPosition.current
+                                .x + "px"}
+                            style:--block-position-y={block.cssPosition.current
+                                .y + "px"}
+                            style:left={"0px"}
+                            style:--shadow-color={block.color
+                                .darken(0.5)
+                                .hex() as any as string}
+                            bind:this={block.blockEl}
+                        >
+                            {@render blockSVG(block)}
+                        </div>
+                    {/each}
+                </div>
                 <div
                     class="preview-mask-wrapper"
                     style:width={60 + gridX * gridBlockWidth + "px"}
@@ -1171,110 +1277,6 @@
                             </svg>
                         </div>
                     {/if}
-                </div>
-                <div class="game-actual-grid">
-                    {#each Array(gridY) as _, y}
-                        {#each Array(gridX) as _, x}
-                            {#key blocks}
-                                <div
-                                    class="game-grid-cell"
-                                    style:grid-column={x + 1}
-                                    style:grid-row={y + 1}
-                                    style:width="{gridBlockWidth}px"
-                                    style:height="{gridBlockHeight}px"
-                                    style:border-radius={`${blockRoundness}px`}
-                                ></div>{/key}
-                        {/each}
-                    {/each}
-                </div>
-                <div class="game-block-selectors">
-                    {#each blocks as block, i (block.id)}
-                        {@const bounds = boundsOfArray([
-                            ...block.parts.map((p) => ({
-                                x: block.truthPosition.x + p.x,
-                                y: block.truthPosition.y + p.y,
-                            })),
-                        ])}
-                        {#if !block.locked}
-                            <div
-                                class="block-selector-zone"
-                                bind:this={blocks[i].blockHome}
-                                style:pointer-events="none"
-                            >
-                                {#if !block.placed}
-                                    <div
-                                        style:opacity={block.dragging ||
-                                        block.isCurrentlyAnimating
-                                            ? "0"
-                                            : "1"}
-                                        class="game-block-shadow-wrapper"
-                                        class:game-block-selectable={true}
-                                        style:width={(bounds.absolute.maxX +
-                                            1) *
-                                            gridBlockWidth +
-                                            "px"}
-                                        style:height={(bounds.absolute.maxY +
-                                            1) *
-                                            gridBlockHeight +
-                                            "px"}
-                                        style:top={"50%"}
-                                        style:--block-position-x={"-50%"}
-                                        style:--block-position-y={"-50%"}
-                                        style:left={"50%"}
-                                        style:--shadow-color={block.color
-                                            .darken(0.5)
-                                            .hex() as any as string}
-                                    >
-                                        {@render blockSVG(block)}
-                                    </div>
-                                {/if}
-                            </div>
-                        {/if}
-                    {/each}
-                </div>
-                <div
-                    class="grid-wrapper-scale"
-                    style:transform={`scale(${gameDoneSpring.current})`}
-                    style:width={`${gridBlockWidth * gridX}px`}
-                    style:height={`${gridBlockHeight * gridY}px`}
-                >
-                    {#each blocks as block}
-                        {@const bounds = boundsOfArray([
-                            ...block.parts.map((p) => ({
-                                x: block.truthPosition.x + p.x,
-                                y: block.truthPosition.y + p.y,
-                            })),
-                        ])}
-                        <div
-                            style:opacity={block.dragging ||
-                            block.placed ||
-                            block.isCurrentlyAnimating
-                                ? "1"
-                                : "0"}
-                            class:ignore-all-events={!block.placed}
-                            class="game-block-shadow-wrapper"
-                            class:game-complete-block={gameDoneState}
-                            class:game-block-selectable={!block.placed}
-                            style:width={(bounds.absolute.maxX + 1) *
-                                gridBlockWidth +
-                                "px"}
-                            style:height={(bounds.absolute.maxY + 1) *
-                                gridBlockHeight +
-                                "px"}
-                            style:top={"0px"}
-                            style:--block-position-x={block.cssPosition.current
-                                .x + "px"}
-                            style:--block-position-y={block.cssPosition.current
-                                .y + "px"}
-                            style:left={"0px"}
-                            style:--shadow-color={block.color
-                                .darken(0.5)
-                                .hex() as any as string}
-                            bind:this={block.blockEl}
-                        >
-                            {@render blockSVG(block)}
-                        </div>
-                    {/each}
                 </div>
             </div>
         </div>
@@ -1529,6 +1531,7 @@
         padding: 30px 0px;
         overflow-x: auto;
         overflow-y: hidden;
+        touch-action: none;
 
         display: grid;
         grid-template-rows: repeat(2, auto);
@@ -1550,7 +1553,7 @@
     }
     .game-block-cell {
         cursor: grab;
-        
+
         touch-action: none !important;
         pointer-events: all;
     }
