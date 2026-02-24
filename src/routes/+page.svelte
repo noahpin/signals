@@ -3,7 +3,8 @@
     import chroma, { type Color } from "chroma-js";
     import DTLogo from "$lib/assets/dt-logo.png";
     import { DTGameCore } from "$lib/dailytrojan-lib/gameCore";
-    import { Spring } from "svelte/motion";
+    import { Spring, Tween } from "svelte/motion";
+    import { sineInOut } from "svelte/easing";
 
     let DTGCore: DTGameCore;
     let isWebKit = $state(false);
@@ -50,12 +51,14 @@
     let gameBlockSelectors: HTMLElement | null = $state(null);
 
     onMount(async () => {
-        initializeGame(difficulties[2]);
+        initializeGame(difficulties[1]);
         window.initGame = initializeGame;
         //@ts-ignore
         window.gameCompleteEffect = gameCompleteEffect;
         //@ts-ignore
-        isWebKit = typeof window.webkitConvertPointFromNodeToPage === 'function' || 'webkitRequestAnimationFrame' in window;
+        isWebKit =
+            typeof window.webkitConvertPointFromNodeToPage === "function" ||
+            "webkitRequestAnimationFrame" in window;
     });
     async function initializeGame(difficulty: {
         gridX: number;
@@ -63,6 +66,7 @@
         waypoints: number;
         rdx: number;
     }) {
+      disableInput = false;
         gridX = difficulty.gridX;
         gridY = difficulty.gridY;
         maxWaypoints = difficulty.waypoints;
@@ -809,6 +813,10 @@
                 });
             }
         });
+        console.log(validateWin());
+        if (validateWin()) {
+            gameCompleteEffect();
+        }
     }
 
     function repositionBlocks() {
@@ -940,7 +948,23 @@
     // we need to check that any blocks that have path elements in them are in the correct position
     // that is all
     // we then just need to check and make sure that al blocks are placed somewhere.
-    function validateWin() {}
+    function validateWin() {
+        let placedBlocksValid = true;
+        blocks.forEach((b) => {
+            if (!b.placed) {
+                placedBlocksValid = false;
+            }
+            if (b.signalPath.length > 0) {
+                if (
+                    b.truthPosition.x != b.position.x ||
+                    b.truthPosition.y != b.position.y
+                ) {
+                    placedBlocksValid = false;
+                }
+            }
+        });
+        return placedBlocksValid;
+    }
 
     let strokePadding = 4;
     let blockRoundness = $state(12);
@@ -986,17 +1010,36 @@
         precision: 0.0001,
     });
 
+    let completePath: SVGPathElement | null = $state(null);
+    let pathLength = new Tween(0, {
+        duration: 1600,
+        easing: sineInOut,
+    });
+    let disableInput = $state(false);
     function gameCompleteEffect() {
-        blockRoundness = 6;
-        gameDoneState = true;
-        verticalBlockPadding = 0;
-        horizontalBlockPadding = 0;
-        gameDoneSpring.set(1.05);
+      disableInput = true;
         setTimeout(() => {
-            gameDoneSpring.set(1, {
-                preserveMomentum: 1,
-            });
-        }, 100);
+            if (completePath == null) return;
+            let length = completePath?.getTotalLength();
+            completePath.style.opacity = "1";
+            completePath.style.strokeDasharray = `${length}`;
+            pathLength.set(length, { duration: 0 });
+            setTimeout(() => {
+                pathLength.set(0);
+            }, 10);
+            setTimeout(() => {
+                blockRoundness = 6;
+                gameDoneState = true;
+                verticalBlockPadding = 0;
+                horizontalBlockPadding = 0;
+                gameDoneSpring.set(1.1);
+                setTimeout(() => {
+                    gameDoneSpring.set(1, {
+                        preserveMomentum: 1,
+                    });
+                }, 100);
+            }, 2000);
+        }, 1000);
     }
 </script>
 
@@ -1026,25 +1069,6 @@
                 bind:this={gameGrid}
                 style:width={`${gridBlockWidth * gridX}px`}
             >
-                <svg
-                    class="path-overlay"
-                    viewBox={`0 0 ${gridBlockWidth * gridX} ${gridBlockHeight * gridY}`}
-                >
-                    <path
-                        d={`M ${path[0].x * gridBlockWidth + gridBlockWidth / 2} ${path[0].y * gridBlockHeight + gridBlockHeight / 2} ` +
-                            path
-                                .map(
-                                    (p) =>
-                                        `L ${p.x * gridBlockWidth + gridBlockWidth / 2} ${p.y * gridBlockHeight + gridBlockHeight / 2} `,
-                                )
-                                .join(" ")}
-                        stroke-width="10px"
-                        stroke="white"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        fill="transparent"
-                    ></path>
-                </svg>
                 <div class="game-actual-grid">
                     {#each Array(gridY) as _, y}
                         {#each Array(gridX) as _, x}
@@ -1101,7 +1125,9 @@
                                             .darken(0.5)
                                             .hex() as any as string}
                                     >
-                                        <div class:game-block-shadow-wrapper={!isWebKit}>
+                                        <div
+                                            class:game-block-shadow-wrapper={!isWebKit}
+                                        >
                                             {@render blockSVG(block)}
                                         </div>
                                     </div>
@@ -1129,7 +1155,7 @@
                             block.isCurrentlyAnimating
                                 ? "1"
                                 : "0"}
-                            class:ignore-all-events={!block.placed}
+                            class:ignore-all-events={!block.placed || disableInput}
                             class="game-block-transform-wrapper"
                             class:game-complete-block={gameDoneState}
                             class:game-block-selectable={!block.placed}
@@ -1150,13 +1176,12 @@
                                 .hex() as any as string}
                             bind:this={block.blockEl}
                         >
-                            
                             <div class:game-block-shadow-wrapper={!isWebKit}>
                                 {@render blockSVG(block)}
                             </div>
                         </div>
                     {/each}
-                    
+
                     <div
                         class="preview-mask-wrapper"
                         style:width={60 + gridX * gridBlockWidth + "px"}
@@ -1195,7 +1220,8 @@
                                     height={(bounds.absolute.maxY + 1) *
                                         gridBlockHeight}
                                     viewBox={`0 0 ${(bounds.absolute.maxX + 1) * gridBlockWidth} ${
-                                        (bounds.absolute.maxY + 1) * gridBlockHeight
+                                        (bounds.absolute.maxY + 1) *
+                                        gridBlockHeight
                                     }`}
                                 >
                                     <defs>
@@ -1240,7 +1266,7 @@
                                                     fill={"white"}
                                                 ></rect>
                                             {/each}
-    
+
                                             {#each block.cardinalTwoPairs as pair}
                                                 <path
                                                     class="game-block-cell"
@@ -1283,9 +1309,11 @@
                                                 mask="url(#block-mask-drop-preview)"
                                                 x="0"
                                                 y="0"
-                                                width={(bounds.absolute.maxX + 1) *
+                                                width={(bounds.absolute.maxX +
+                                                    1) *
                                                     gridBlockWidth}
-                                                height={(bounds.absolute.maxY + 1) *
+                                                height={(bounds.absolute.maxY +
+                                                    1) *
                                                     gridBlockHeight}
                                                 fill={currentPlacementInvalid
                                                     ? "var(--error)"
@@ -1297,6 +1325,28 @@
                             </div>
                         {/if}
                     </div>
+                    <svg
+                        class="path-overlay"
+                        viewBox={`0 0 ${gridBlockWidth * gridX} ${gridBlockHeight * gridY}`}
+                        style:transform={`translateY(-${gameDoneState ? 0 : 5}px)`}
+                    >
+                        <path
+                            d={`M ${path[0].x * gridBlockWidth + gridBlockWidth / 2} ${path[0].y * gridBlockHeight + gridBlockHeight / 2} ` +
+                                path
+                                    .map(
+                                        (p) =>
+                                            `L ${p.x * gridBlockWidth + gridBlockWidth / 2} ${p.y * gridBlockHeight + gridBlockHeight / 2} `,
+                                    )
+                                    .join(" ")}
+                            stroke-width="10px"
+                            stroke="white"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            fill="transparent"
+                            bind:this={completePath}
+                            stroke-dashoffset={pathLength.current}
+                        ></path>
+                    </svg>
                 </div>
             </div>
         </div>
@@ -1504,6 +1554,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     fill="transparent"
+                    stroke-dashoffset={pathLength.current}
                 ></path>
             </g>
         </svg>
@@ -1537,9 +1588,12 @@
         z-index: 99;
         z-index: 999999;
         pointer-events: none;
-        transform: translateY(-6px);
+        opacity: 1;
+    }
+    .path-overlay path {
         opacity: 0;
     }
+
     .block-selector-zone {
         width: 70px;
         height: 70px;
@@ -1603,7 +1657,6 @@
         --block-position-x: 0px;
         --block-position-y: 0px;
         position: absolute;
-        transition: filter 0.2s;
         pointer-events: none;
         transform: translate(
             var(--block-position-x),
@@ -1611,6 +1664,7 @@
         );
     }
     .game-block-shadow-wrapper {
+        transition: filter 0.2s;
         filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
@@ -1618,7 +1672,6 @@
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color));
-        
     }
     .game-block-drop-preview {
         position: absolute;
@@ -1642,7 +1695,8 @@
             calc(var(--block-position-y) - 5px)
         );
     }
-    .game-block-transform-wrapper.game-block-selectable .game-block-shadow-wrapper {
+    .game-block-transform-wrapper.game-block-selectable
+        .game-block-shadow-wrapper {
         filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color));
@@ -1657,10 +1711,9 @@
     }
     .block-dragging * {
         z-index: 9999999999999 !important;
-        
     }
-    .game-block-transform-wrapper:has(.block-dragging) .game-block-shadow-wrapper {
-        
+    .game-block-transform-wrapper:has(.block-dragging)
+        .game-block-shadow-wrapper {
         filter: drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
@@ -1678,7 +1731,11 @@
         left: 0;
         pointer-events: none;
         z-index: 99999;
-        filter:drop-shadow(0px 10px 0px var(--shadow-color))
+        transition: filter 0.2s;
+        filter: drop-shadow(0px 10px 0px var(--shadow-color));
+    }
+    .game-block-svg * {
+        transition: 0.2s;
     }
     @keyframes sway {
         0% {
@@ -1763,7 +1820,6 @@
         filter: none;
     }
     .game-complete-block .game-block-svg {
-        
         filter: none;
     }
     .game-block-shadow-wrapper .game-block-svg {
