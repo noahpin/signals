@@ -560,12 +560,15 @@
     let selectedBlock: Block | null;
     let pPointer: { x: number; y: number } = { x: 0, y: 0 };
     let dragSway = $state(0);
+    let activelyDragging = $state(false);
     function blockPointerDown(block: Block, e: PointerEvent) {
         e.preventDefault();
         dragSway = 0;
         if (!block) return;
         if (block.locked) return;
+        if(activelyDragging) return;
         selectedBlock = block;
+        activelyDragging = true;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
         if (
@@ -610,6 +613,7 @@
     }
 
     function pointerMove(e: PointerEvent) {
+      if(!activelyDragging) return;
         e.preventDefault();
         if (
             !(e.target as HTMLElement).hasPointerCapture(e.pointerId) ||
@@ -666,6 +670,8 @@
     });
     let currentlyHovering = $state(false);
     function pointerUp(e: PointerEvent) {
+      if(!activelyDragging) return;
+      activelyDragging = false;
         dragSway = 0;
         currentlyHovering = false;
         e.preventDefault();
@@ -990,7 +996,9 @@
     />
 </header>
 
-<svelte:window onresize={onResize} />
+<svelte:window onresize={onResize} 
+    onpointermove={pointerMove}
+    onpointerup={pointerUp} />
 
 <main>
     <div class="game-wrapper">
@@ -1292,8 +1300,6 @@
         onpointerdown={(e) => {
             blockPointerDown(block, e);
         }}
-        onpointermove={pointerMove}
-        onpointerup={pointerUp}
         tabindex="-1"
         role="button"
     >
