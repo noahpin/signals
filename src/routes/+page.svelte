@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
     import chroma, { type Color } from "chroma-js";
-    import DTLogo from "$lib/assets/dt-logo.png";
+    import DTLogo from "$lib/dailytrojan-lib/Games_Logo.svg";
     import { DTGameCore } from "$lib/dailytrojan-lib/gameCore";
     import { Spring, Tween } from "svelte/motion";
     import { sineInOut } from "svelte/easing";
@@ -26,7 +26,7 @@
     let path: { x: number; y: number }[] = $state([{ x: -10, y: -10 }]);
     let difficulties = [
         { gridX: 6, gridY: 6, waypoints: 2, rdx: 1 },
-        { gridX: 7, gridY: 7, waypoints: 6, rdx: 8 },
+        { gridX: 9, gridY: 8, waypoints: 6, rdx: 8 },
         { gridX: 8, gridY: 8, waypoints: 8, rdx: 24 },
         { gridX: 8, gridY: 8, waypoints: 12, rdx: 55 },
     ];
@@ -92,7 +92,7 @@
     }
 
     function genRandomId() {
-        return Math.random().toString(36).substr(2, 9);
+        return DTGCore.randomFloat().toString(36).substr(2, 9);
     }
 
     function generateCorrectPath() {
@@ -1044,21 +1044,26 @@
 </script>
 
 <header>
-    <img
-        id="dt-logo"
-        src={DTLogo}
-        height="50"
-        width="auto"
-        style="cursor: pointer;"
-        alt="Daily Trojan Logo"
-    />
+    <div class="header-group header-group-left">
+        <img
+            id="dt-logo"
+            src={DTLogo}
+            width="auto"
+            style="cursor: pointer;"
+            alt="Daily Trojan Logo"
+        />
+        
+    </div>
+    <h1>Signals</h1>
+    <div class="header-group header-group-right">
+        
+    </div>
 </header>
 
 <svelte:window onresize={onResize} />
 
 <main>
     <div class="game-wrapper">
-        <h1>Signals</h1>
         <div class="top-details">
             <div class="word-container" id="word-container"></div>
             <div class="points-bar"></div>
@@ -1562,6 +1567,17 @@
 {/snippet}
 
 <style>
+    .game-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .game-zone {
+        flex-grow: 1;
+    }
+    .game-grid {
+        flex-grow: 1;
+    }
     .grid-wrapper-scale {
         position: absolute;
         top: 0;
@@ -1575,6 +1591,9 @@
     }
     .game-grid {
         position: relative;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
     }
     .game-actual-grid {
         display: grid;
@@ -1605,17 +1624,19 @@
     }
     .game-block-selectors {
         width: 100%;
-
+        height: 100%;
         gap: 8px;
         margin-top: 0px;
         padding: 30px 0px;
         overflow-x: auto;
         overflow-y: hidden;
 
+        box-sizing: border-box;
         display: grid;
-        grid-template-rows: repeat(2, auto);
+        grid-template-rows: repeat(auto-fill, 70px);
         grid-auto-flow: column;
         grid-auto-columns: 1fr;
+        max-height: 230px;
     }
     .game-grid-cell {
         background: var(--raised-surface);
@@ -1801,6 +1822,10 @@
         .block-selector-zone {
             width: 80px;
             height: 80px;
+        }
+        .game-block-selectors {
+            
+            grid-template-rows: repeat(auto-fill, 80px);
         }
     }
 
