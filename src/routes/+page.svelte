@@ -1544,6 +1544,8 @@
     }
     .game-block-cell {
         cursor: grab;
+        
+        touch-action: none !important;
         pointer-events: all;
     }
     .game-block-locked .game-block-cell {
