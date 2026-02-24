@@ -1587,8 +1587,9 @@
         transition: transform 0.4s cubic-bezier(0.18, 1.46, 0.65, 0.98);
         pointer-events: none;
         transform: scale(calc(var(--scale-hover-mult) * var(--scale-mult)))
-            rotate(var(--sway-angle));
+            rotate(var(--sway-angle)) translateZ(0);
         touch-action: none;
+        will-change: transform;
     }
     .game-block-shadow-wrapper {
         --block-position-x: 0px;
@@ -1604,9 +1605,16 @@
             drop-shadow(0px 1px 0px var(--shadow-color));
         pointer-events: none;
         transform: translate(
-            var(--block-position-x),
-            calc(var(--block-position-y) - 5px)
-        );
+                var(--block-position-x),
+                calc(var(--block-position-y) - 5px)
+            )
+            translateZ(0);
+        will-change: transform, filter;
+        -webkit-transform: translate(
+                var(--block-position-x),
+                calc(var(--block-position-y) - 5px)
+            )
+            translateZ(0);
     }
     .game-block-drop-preview {
         position: absolute;
@@ -1626,9 +1634,15 @@
     }
     .game-block-shadow-wrapper.game-block-selectable {
         transform: translate(
-            var(--block-position-x),
-            calc(var(--block-position-y) - 5px)
-        );
+                var(--block-position-x),
+                calc(var(--block-position-y) - 5px)
+            )
+            translateZ(0);
+        -webkit-transform: translate(
+                var(--block-position-x),
+                calc(var(--block-position-y) - 5px)
+            )
+            translateZ(0);
         filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color));
