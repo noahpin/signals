@@ -1607,13 +1607,13 @@
         );
     }
     .game-block-shadow-wrapper {
-        filter: drop-shadow(0px 1px 0px var(--shadow-color))
+        /*filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
-            drop-shadow(0px 1px 0px var(--shadow-color));
+            drop-shadow(0px 1px 0px var(--shadow-color));*/
         
     }
     .game-block-drop-preview {
@@ -1639,9 +1639,9 @@
         );
     }
     .game-block-transform-wrapper.game-block-selectable .game-block-shadow-wrapper {
-        filter: drop-shadow(0px 1px 0px var(--shadow-color))
+        /*filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
-            drop-shadow(0px 1px 0px var(--shadow-color));
+            drop-shadow(0px 1px 0px var(--shadow-color));*/
     }
     .game-block-selectable .game-block {
         --scale-mult: 0.33;
@@ -1653,11 +1653,11 @@
     }
     .game-block-transform-wrapper:has(.block-dragging) .game-block-shadow-wrapper {
         
-        filter: drop-shadow(0px 2px 0px var(--shadow-color))
+        /*filter: drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
-            drop-shadow(0px 2px 0px var(--shadow-color));
+            drop-shadow(0px 2px 0px var(--shadow-color));*/
     }
     .game-block.block-dragging {
         --scale-mult: 0.7;
@@ -1670,6 +1670,7 @@
         left: 0;
         pointer-events: none;
         z-index: 99999;
+        filter:drop-shadow(0px 10px 0px var(--shadow-color))
     }
     @keyframes sway {
         0% {
@@ -1751,6 +1752,10 @@
         pointer-events: none;
     }
     .game-complete-block .game-block-shadow-wrapper {
+        filter: none;
+    }
+    .game-complete-block .game-block-svg {
+        
         filter: none;
     }
     .game-complete-block * {
