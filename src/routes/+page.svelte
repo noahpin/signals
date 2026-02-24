@@ -1080,7 +1080,7 @@
                                         block.isCurrentlyAnimating
                                             ? "0"
                                             : "1"}
-                                        class="game-block-shadow-wrapper"
+                                        class="game-block-transform-wrapper"
                                         class:game-block-selectable={true}
                                         style:width={(bounds.absolute.maxX +
                                             1) *
@@ -1098,7 +1098,9 @@
                                             .darken(0.5)
                                             .hex() as any as string}
                                     >
-                                        {@render blockSVG(block)}
+                                        <div class="game-block-shadow-wrapper">
+                                            {@render blockSVG(block)}
+                                        </div>
                                     </div>
                                 {/if}
                             </div>
@@ -1125,7 +1127,7 @@
                                 ? "1"
                                 : "0"}
                             class:ignore-all-events={!block.placed}
-                            class="game-block-shadow-wrapper"
+                            class="game-block-transform-wrapper"
                             class:game-complete-block={gameDoneState}
                             class:game-block-selectable={!block.placed}
                             style:width={(bounds.absolute.maxX + 1) *
@@ -1145,7 +1147,10 @@
                                 .hex() as any as string}
                             bind:this={block.blockEl}
                         >
-                            {@render blockSVG(block)}
+                            
+                            <div class="game-block-shadow-wrapper">
+                                {@render blockSVG(block)}
+                            </div>
                         </div>
                     {/each}
                 </div>
@@ -1590,11 +1595,18 @@
             rotate(var(--sway-angle));
         touch-action: none;
     }
-    .game-block-shadow-wrapper {
+    .game-block-transform-wrapper {
         --block-position-x: 0px;
         --block-position-y: 0px;
         position: absolute;
         transition: filter 0.2s;
+        pointer-events: none;
+        transform: translate(
+            var(--block-position-x),
+            calc(var(--block-position-y) - 5px)
+        );
+    }
+    .game-block-shadow-wrapper {
         filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
@@ -1602,13 +1614,7 @@
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color));
-        pointer-events: none;
-        transform: translate(
-            var(--block-position-x),
-            calc(var(--block-position-y) - 5px)
-        );
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
+        
     }
     .game-block-drop-preview {
         position: absolute;
@@ -1623,14 +1629,16 @@
         --scale-hover-mult: 1.02;
         z-index: 99999;
     }
-    .game-block-shadow-wrapper:has(.game-block-cell:hover) {
+    .game-block-transform-wrapper:has(.game-block-cell:hover) {
         z-index: 99999;
     }
-    .game-block-shadow-wrapper.game-block-selectable {
+    .game-block-transform-wrapper.game-block-selectable {
         transform: translate(
             var(--block-position-x),
             calc(var(--block-position-y) - 5px)
         );
+    }
+    .game-block-transform-wrapper.game-block-selectable .game-block-shadow-wrapper {
         filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color));
@@ -1640,13 +1648,16 @@
         animation: sway var(--sway-duration) infinite both alternate-reverse
             ease-in-out;
     }
-    .game-block-shadow-wrapper:has(.block-dragging) {
+    .game-block-transform-wrapper:has(.block-dragging) {
+        z-index: 9999999999999;
+    }
+    .game-block-transform-wrapper:has(.block-dragging) .game-block-shadow-wrapper {
+        
         filter: drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color));
-        z-index: 9999999999999;
     }
     .game-block.block-dragging {
         --scale-mult: 0.7;
@@ -1738,6 +1749,9 @@
             calc(var(--block-position-y))
         );
         pointer-events: none;
+    }
+    .game-complete-block .game-block-shadow-wrapper {
+        filter: none;
     }
     .game-complete-block * {
         pointer-events: none !important;
