@@ -6,6 +6,7 @@
     import { Spring } from "svelte/motion";
 
     let DTGCore: DTGameCore;
+    let isWebKit = $state(false);
 
     let gridX = $state(6);
     let gridY = $state(6);
@@ -53,6 +54,8 @@
         window.initGame = initializeGame;
         //@ts-ignore
         window.gameCompleteEffect = gameCompleteEffect;
+        //@ts-ignore
+        isWebKit = typeof window.webkitConvertPointFromNodeToPage === 'function' || 'webkitRequestAnimationFrame' in window;
     });
     async function initializeGame(difficulty: {
         gridX: number;
@@ -1098,7 +1101,7 @@
                                             .darken(0.5)
                                             .hex() as any as string}
                                     >
-                                        <div class="game-block-shadow-wrapper">
+                                        <div class:game-block-shadow-wrapper={!isWebKit}>
                                             {@render blockSVG(block)}
                                         </div>
                                     </div>
@@ -1148,7 +1151,7 @@
                             bind:this={block.blockEl}
                         >
                             
-                            <div class="game-block-shadow-wrapper">
+                            <div class:game-block-shadow-wrapper={!isWebKit}>
                                 {@render blockSVG(block)}
                             </div>
                         </div>
@@ -1607,13 +1610,13 @@
         );
     }
     .game-block-shadow-wrapper {
-        /*filter: drop-shadow(0px 1px 0px var(--shadow-color))
+        filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
-            drop-shadow(0px 1px 0px var(--shadow-color));*/
+            drop-shadow(0px 1px 0px var(--shadow-color));
         
     }
     .game-block-drop-preview {
@@ -1639,9 +1642,9 @@
         );
     }
     .game-block-transform-wrapper.game-block-selectable .game-block-shadow-wrapper {
-        /*filter: drop-shadow(0px 1px 0px var(--shadow-color))
+        filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
-            drop-shadow(0px 1px 0px var(--shadow-color));*/
+            drop-shadow(0px 1px 0px var(--shadow-color));
     }
     .game-block-selectable .game-block {
         --scale-mult: 0.33;
@@ -1653,11 +1656,11 @@
     }
     .game-block-transform-wrapper:has(.block-dragging) .game-block-shadow-wrapper {
         
-        /*filter: drop-shadow(0px 2px 0px var(--shadow-color))
+        filter: drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
             drop-shadow(0px 1px 0px var(--shadow-color))
-            drop-shadow(0px 2px 0px var(--shadow-color));*/
+            drop-shadow(0px 2px 0px var(--shadow-color));
     }
     .game-block.block-dragging {
         --scale-mult: 0.7;
@@ -1756,6 +1759,9 @@
     }
     .game-complete-block .game-block-svg {
         
+        filter: none;
+    }
+    .game-block-shadow-wrapper .game-block-svg {
         filter: none;
     }
     .game-complete-block * {
