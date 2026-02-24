@@ -251,7 +251,7 @@
     }
 
     let springProperties: any = {
-      precision: 0.1
+        precision: 0.1,
     };
 
     function generateBlocks() {
@@ -561,10 +561,10 @@
     let pPointer: { x: number; y: number } = { x: 0, y: 0 };
     let dragSway = $state(0);
     function blockPointerDown(block: Block, e: PointerEvent) {
+        e.preventDefault();
         dragSway = 0;
         if (!block) return;
         if (block.locked) return;
-        e.preventDefault();
         selectedBlock = block;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
@@ -588,7 +588,7 @@
                 { instant: true },
             );
         }
-        
+
         selectedBlock.isCurrentlyAnimating = true;
 
         pPointer = { x: e.clientX, y: e.clientY };
@@ -610,6 +610,7 @@
     }
 
     function pointerMove(e: PointerEvent) {
+        e.preventDefault();
         if (
             !(e.target as HTMLElement).hasPointerCapture(e.pointerId) ||
             gameGrid == null ||
@@ -617,7 +618,6 @@
             selectedBlock.blockEl == null
         )
             return;
-        e.preventDefault();
         currentlyHovering = true;
         let current = selectedBlock.cssPosition.current;
         let bRect = selectedBlock.blockEl.getBoundingClientRect();
@@ -722,17 +722,19 @@
                 deAnimateSelectedBlock(selectedBlock, {
                     x: rect.left - grid.left + rect.width / 2 - bRect.width / 2,
                     y: rect.top - grid.top + rect.height / 2 - bRect.height / 2,
-                })
+                });
             }
         }
         selectedBlock = null;
     }
-    
-    async function deAnimateSelectedBlock (block: Block, pos: {x: number, y: number}) {
-      await block.cssPosition.set(pos)
-      block.isCurrentlyAnimating = false;
+
+    async function deAnimateSelectedBlock(
+        block: Block,
+        pos: { x: number; y: number },
+    ) {
+        await block.cssPosition.set(pos);
+        block.isCurrentlyAnimating = false;
     }
-    
 
     let occupiedSpaces: boolean[][] = $state(new Array(gridX));
 
@@ -940,7 +942,7 @@
             setBlockDefaultPositions();
             repositionBlocks();
             blockPathWidth = 12;
-            blockRoundness = 8
+            blockRoundness = 8;
         } else if (window.innerWidth > 500 && maxGridWidth != 400) {
             maxGridWidth = 400;
             verticalBlockPadding = 7;
@@ -952,28 +954,28 @@
             setBlockDefaultPositions();
             repositionBlocks();
             blockPathWidth = 16;
-            blockRoundness = 12
+            blockRoundness = 12;
         }
     }
-    
+
     let gameDoneState = $state(false);
     let gameDoneSpring = new Spring(1, {
-      stiffness: 0.15,
-      damping: .22,
-      precision: 0.0001
-    })
-    
+        stiffness: 0.15,
+        damping: 0.22,
+        precision: 0.0001,
+    });
+
     function gameCompleteEffect() {
-      blockRoundness = 6;
+        blockRoundness = 6;
         gameDoneState = true;
         verticalBlockPadding = 0;
         horizontalBlockPadding = 0;
-        gameDoneSpring.set(1.05)
-        setTimeout(()=>{
-          gameDoneSpring.set(1, {
-            preserveMomentum: 1
-          })
-        },100)
+        gameDoneSpring.set(1.05);
+        setTimeout(() => {
+            gameDoneSpring.set(1, {
+                preserveMomentum: 1,
+            });
+        }, 100);
     }
 </script>
 
@@ -1193,7 +1195,8 @@
                             >
                                 {#if !block.placed}
                                     <div
-                                        style:opacity={(block.dragging || block.isCurrentlyAnimating)
+                                        style:opacity={block.dragging ||
+                                        block.isCurrentlyAnimating
                                             ? "0"
                                             : "1"}
                                         class="game-block-shadow-wrapper"
@@ -1221,45 +1224,49 @@
                         {/if}
                     {/each}
                 </div>
-                <div class="grid-wrapper-scale"
+                <div
+                    class="grid-wrapper-scale"
                     style:transform={`scale(${gameDoneSpring.current})`}
                     style:width={`${gridBlockWidth * gridX}px`}
-                    style:height={`${gridBlockHeight * gridY}px`}>
-                {#each blocks as block}
-                    {@const bounds = boundsOfArray([
-                        ...block.parts.map((p) => ({
-                            x: block.truthPosition.x + p.x,
-                            y: block.truthPosition.y + p.y,
-                        })),
-                    ])}
-                    <div
-                        style:opacity={(block.dragging || block.placed || block.isCurrentlyAnimating)
-                            ? "1"
-                            : "0"}
-                        class:ignore-all-events={!block.placed}
-                        class="game-block-shadow-wrapper"
-                        class:game-complete-block={gameDoneState}
-                        class:game-block-selectable={!block.placed}
-                        style:width={(bounds.absolute.maxX + 1) *
-                            gridBlockWidth +
-                            "px"}
-                        style:height={(bounds.absolute.maxY + 1) *
-                            gridBlockHeight +
-                            "px"}
-                        style:top={"0px"}
-                        style:--block-position-x={block.cssPosition.current.x +
-                            "px"}
-                        style:--block-position-y={block.cssPosition.current.y +
-                            "px"}
-                        style:left={"0px"}
-                        style:--shadow-color={block.color
-                            .darken(0.5)
-                            .hex() as any as string}
-                        bind:this={block.blockEl}
-                    >
-                        {@render blockSVG(block)}
-                    </div>
-                {/each}
+                    style:height={`${gridBlockHeight * gridY}px`}
+                >
+                    {#each blocks as block}
+                        {@const bounds = boundsOfArray([
+                            ...block.parts.map((p) => ({
+                                x: block.truthPosition.x + p.x,
+                                y: block.truthPosition.y + p.y,
+                            })),
+                        ])}
+                        <div
+                            style:opacity={block.dragging ||
+                            block.placed ||
+                            block.isCurrentlyAnimating
+                                ? "1"
+                                : "0"}
+                            class:ignore-all-events={!block.placed}
+                            class="game-block-shadow-wrapper"
+                            class:game-complete-block={gameDoneState}
+                            class:game-block-selectable={!block.placed}
+                            style:width={(bounds.absolute.maxX + 1) *
+                                gridBlockWidth +
+                                "px"}
+                            style:height={(bounds.absolute.maxY + 1) *
+                                gridBlockHeight +
+                                "px"}
+                            style:top={"0px"}
+                            style:--block-position-x={block.cssPosition.current
+                                .x + "px"}
+                            style:--block-position-y={block.cssPosition.current
+                                .y + "px"}
+                            style:left={"0px"}
+                            style:--shadow-color={block.color
+                                .darken(0.5)
+                                .hex() as any as string}
+                            bind:this={block.blockEl}
+                        >
+                            {@render blockSVG(block)}
+                        </div>
+                    {/each}
                 </div>
             </div>
         </div>
@@ -1470,12 +1477,11 @@
 {/snippet}
 
 <style>
-    
     .grid-wrapper-scale {
         position: absolute;
         top: 0;
         left: 0;
-        z-index:999999999;
+        z-index: 999999999;
     }
     .game-zone {
         display: flex;
@@ -1562,11 +1568,13 @@
         --block-position-y: 0px;
         position: absolute;
         transition: filter 0.2s;
-        filter: drop-shadow(0px 2px 0px var(--shadow-color))
+        filter: drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
+            drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
+            drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
-            drop-shadow(0px 2px 0px var(--shadow-color));
+            drop-shadow(0px 1px 0px var(--shadow-color));
         pointer-events: none;
         transform: translate(
             var(--block-position-x),
@@ -1594,8 +1602,9 @@
             var(--block-position-x),
             calc(var(--block-position-y) - 5px)
         );
-        filter: drop-shadow(0px 2px 0px var(--shadow-color))
-            drop-shadow(0px 2px 0px var(--shadow-color));
+        filter: drop-shadow(0px 1px 0px var(--shadow-color))
+            drop-shadow(0px 2px 0px var(--shadow-color))
+            drop-shadow(0px 1px 0px var(--shadow-color));
     }
     .game-block-selectable .game-block {
         --scale-mult: 0.33;
@@ -1604,10 +1613,11 @@
     }
     .game-block-shadow-wrapper:has(.block-dragging) {
         filter: drop-shadow(0px 2px 0px var(--shadow-color))
+            drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color))
-            drop-shadow(0px 2px 0px var(--shadow-color))
+            drop-shadow(0px 1px 0px var(--shadow-color))
             drop-shadow(0px 2px 0px var(--shadow-color));
-            z-index: 9999999999999;
+        z-index: 9999999999999;
     }
     .game-block.block-dragging {
         --scale-mult: 0.7;
@@ -1698,9 +1708,9 @@
             var(--block-position-x),
             calc(var(--block-position-y))
         );
-        pointer-events: none;   
+        pointer-events: none;
     }
-    .game-complete-block *  {
+    .game-complete-block * {
         pointer-events: none !important;
     }
 </style>
