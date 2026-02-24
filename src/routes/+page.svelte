@@ -5,6 +5,9 @@
     import { DTGameCore } from "$lib/dailytrojan-lib/gameCore";
     import { Spring, Tween } from "svelte/motion";
     import { sineInOut } from "svelte/easing";
+    import SignalsLogo from "$lib/assets/signals.svg";
+    let gameSplash: HTMLElement | null = null;
+    let gameDate: HTMLElement | null = null;
 
     let DTGCore: DTGameCore;
     let isWebKit = $state(false);
@@ -18,6 +21,7 @@
     let sink = $state({ x: gridX - 1, y: gridY - 1 });
 
     let amountOfBlocks = $state(0);
+    let splashReady = $state(false);
 
     let maxWaypoints = 2;
     let waypoints: { x: number; y: number }[] = $state([]);
@@ -56,7 +60,7 @@
         //@ts-ignore
         window.gameCompleteEffect = gameCompleteEffect;
         //@ts-ignore
-        isWebKit =
+        isWebKit = //@ts-ignore
             typeof window.webkitConvertPointFromNodeToPage === "function" ||
             "webkitRequestAnimationFrame" in window;
     });
@@ -70,7 +74,7 @@
         gridX = difficulty.gridX;
         gridY = difficulty.gridY;
         maxWaypoints = difficulty.waypoints;
-        DTGCore = new DTGameCore(null, null);
+        DTGCore = new DTGameCore(gameSplash, gameDate);
         for (let i = 0; i < difficulty.rdx; i++) {
             DTGCore.randomFloat();
         }
@@ -89,6 +93,7 @@
         setBlockDefaultPositions();
         await tick();
         onResize();
+        splashReady = true;
     }
 
     function genRandomId() {
@@ -761,6 +766,18 @@
         block.isCurrentlyAnimating = false;
     }
 
+    function playGame() {
+        DTGCore.hideSplashScreen();
+
+        // if (gameOver) {
+        //     finishGame();
+        // }
+        // let firstTime = localStorage.getItem("firstTimePlayed") == null;
+        // if (firstTime) {
+        //     localStorage.setItem("firstTimePlayed", "true");
+        //     showHowTo = true;
+        // }
+    }
     let occupiedSpaces: boolean[][] = $state(new Array(gridX));
 
     let hoveringSpaces: boolean[][] = $state(new Array(gridX));
@@ -1061,6 +1078,23 @@
 </header>
 
 <svelte:window onresize={onResize} />
+
+<div class="game-splash-wrapper" id="splash" bind:this={gameSplash}>
+    <div class="game-splash-inner" class:game-splash-ready={splashReady}>
+        <img width="80" src={SignalsLogo} alt="Signals Logo" />
+        <h1>Signals</h1>
+        <h2 id="game-tagline">
+            Connect the signal by placing the blocks in order. 
+        </h2>
+        <div class="flex-hor">
+            <button id="game-back-button">Back</button>
+            <button id="game-action-button" onclick={playGame}>Play</button>
+        </div>
+        <p id="splash-date" bind:this={gameDate}>date</p>
+        <p id="splash-date">Game by Noah Pinales</p>
+    </div>
+</div>
+
 
 <main>
     <div class="game-wrapper">
@@ -1577,6 +1611,23 @@
     }
     .game-grid {
         flex-grow: 1;
+    }
+    
+    .game-splash-inner {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .game-splash-ready {
+        opacity: 1;
+    }
+    .game-splash-wrapper {
+        background: #73bf9c;
+        z-index: 9999999999999999 !important;
     }
     .grid-wrapper-scale {
         position: absolute;
