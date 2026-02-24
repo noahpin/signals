@@ -1156,146 +1156,147 @@
                             </div>
                         </div>
                     {/each}
-                </div>
-                <div
-                    class="preview-mask-wrapper"
-                    style:width={60 + gridX * gridBlockWidth + "px"}
-                    style:height={60 + gridY * gridBlockHeight + "px"}
-                >
-                    {#if currentlyHovering && selectedBlock != null}
-                        {@const block = selectedBlock}
-                        {@const bounds = boundsOfArray([
-                            ...block.parts.map((p) => ({
-                                x: currentHoveringPlacement.x + p.x,
-                                y: currentHoveringPlacement.y + p.y,
-                            })),
-                        ])}
-                        <div
-                            class="game-block-drop-preview"
-                            style:width={(bounds.absolute.maxX + 1) *
-                                gridBlockWidth +
-                                "px"}
-                            style:height={(bounds.absolute.maxY + 1) *
-                                gridBlockHeight +
-                                "px"}
-                            style:top={"0px"}
-                            style:--block-position-x={currentHoveringPlacement.x *
-                                gridBlockWidth +
-                                30 +
-                                "px"}
-                            style:--block-position-y={currentHoveringPlacement.y *
-                                gridBlockHeight +
-                                30 +
-                                "px"}
-                            style:left={"0px"}
-                        >
-                            <svg
-                                width={(bounds.absolute.maxX + 1) *
-                                    gridBlockWidth}
-                                height={(bounds.absolute.maxY + 1) *
-                                    gridBlockHeight}
-                                viewBox={`0 0 ${(bounds.absolute.maxX + 1) * gridBlockWidth} ${
-                                    (bounds.absolute.maxY + 1) * gridBlockHeight
-                                }`}
+                    
+                    <div
+                        class="preview-mask-wrapper"
+                        style:width={60 + gridX * gridBlockWidth + "px"}
+                        style:height={60 + gridY * gridBlockHeight + "px"}
+                    >
+                        {#if currentlyHovering && selectedBlock != null}
+                            {@const block = selectedBlock}
+                            {@const bounds = boundsOfArray([
+                                ...block.parts.map((p) => ({
+                                    x: currentHoveringPlacement.x + p.x,
+                                    y: currentHoveringPlacement.y + p.y,
+                                })),
+                            ])}
+                            <div
+                                class="game-block-drop-preview"
+                                style:width={(bounds.absolute.maxX + 1) *
+                                    gridBlockWidth +
+                                    "px"}
+                                style:height={(bounds.absolute.maxY + 1) *
+                                    gridBlockHeight +
+                                    "px"}
+                                style:top={"0px"}
+                                style:--block-position-x={currentHoveringPlacement.x *
+                                    gridBlockWidth +
+                                    30 +
+                                    "px"}
+                                style:--block-position-y={currentHoveringPlacement.y *
+                                    gridBlockHeight +
+                                    30 +
+                                    "px"}
+                                style:left={"0px"}
                             >
-                                <defs>
-                                    <mask
-                                        id={`block-mask-drop-preview`}
-                                        maskUnits="userSpaceOnUse"
-                                        x="0"
-                                        y="0"
-                                        width={(bounds.absolute.maxX + 1) *
-                                            gridBlockWidth}
-                                        height={(bounds.absolute.maxY + 1) *
-                                            gridBlockHeight}
-                                    >
-                                        {#each block.cardinalTwoPairs as pair}
-                                            <path
-                                                class="game-block-cell"
-                                                d={`M ${(pair.x1 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
-                                                stroke-width={gridBlockWidth -
-                                                    previewHoverPadding * 2}
-                                                stroke={"white"}
-                                            ></path>
-                                        {/each}
-                                        {#each block.parts as part}
-                                            <rect
-                                                class="game-block-cell"
-                                                rx={blockRoundness}
-                                                ry={blockRoundness}
-                                                x={(currentHoveringPlacement.x +
-                                                    part.x -
-                                                    bounds.relative.minX) *
-                                                    gridBlockWidth +
-                                                    previewHoverPadding}
-                                                y={(currentHoveringPlacement.y +
-                                                    part.y -
-                                                    bounds.relative.minY) *
-                                                    gridBlockHeight +
-                                                    previewHoverPadding}
-                                                width={gridBlockWidth -
-                                                    previewHoverPadding * 2}
-                                                height={gridBlockHeight -
-                                                    previewHoverPadding * 2}
-                                                fill={"white"}
-                                            ></rect>
-                                        {/each}
-
-                                        {#each block.cardinalTwoPairs as pair}
-                                            <path
-                                                class="game-block-cell"
-                                                d={`M ${(pair.x1 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
-                                                stroke-width={gridBlockWidth -
-                                                    previewOutlineWidth * 2}
-                                                stroke={"#333"}
-                                            ></path>
-                                        {/each}
-                                        {#each block.parts as part}
-                                            <rect
-                                                class="game-block-cell"
-                                                rx={blockRoundness -
-                                                    previewOutlineWidth}
-                                                ry={blockRoundness -
-                                                    previewOutlineWidth}
-                                                x={(currentHoveringPlacement.x +
-                                                    part.x -
-                                                    bounds.relative.minX) *
-                                                    gridBlockWidth +
-                                                    previewOutlineWidth}
-                                                y={(currentHoveringPlacement.y +
-                                                    part.y -
-                                                    bounds.relative.minY) *
-                                                    gridBlockHeight +
-                                                    previewOutlineWidth}
-                                                width={gridBlockWidth -
-                                                    previewOutlineWidth * 2}
-                                                height={gridBlockHeight -
-                                                    previewOutlineWidth * 2}
-                                                fill={"#333"}
-                                            ></rect>
-                                        {/each}
-                                    </mask>
-                                </defs>
-                                <g>
-                                    <g>
-                                        <rect
-                                            class="block-fill-preview"
-                                            mask="url(#block-mask-drop-preview)"
+                                <svg
+                                    width={(bounds.absolute.maxX + 1) *
+                                        gridBlockWidth}
+                                    height={(bounds.absolute.maxY + 1) *
+                                        gridBlockHeight}
+                                    viewBox={`0 0 ${(bounds.absolute.maxX + 1) * gridBlockWidth} ${
+                                        (bounds.absolute.maxY + 1) * gridBlockHeight
+                                    }`}
+                                >
+                                    <defs>
+                                        <mask
+                                            id={`block-mask-drop-preview`}
+                                            maskUnits="userSpaceOnUse"
                                             x="0"
                                             y="0"
                                             width={(bounds.absolute.maxX + 1) *
                                                 gridBlockWidth}
                                             height={(bounds.absolute.maxY + 1) *
                                                 gridBlockHeight}
-                                            fill={currentPlacementInvalid
-                                                ? "var(--error)"
-                                                : "var(--success)"}
-                                        ></rect>
+                                        >
+                                            {#each block.cardinalTwoPairs as pair}
+                                                <path
+                                                    class="game-block-cell"
+                                                    d={`M ${(pair.x1 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
+                                                    stroke-width={gridBlockWidth -
+                                                        previewHoverPadding * 2}
+                                                    stroke={"white"}
+                                                ></path>
+                                            {/each}
+                                            {#each block.parts as part}
+                                                <rect
+                                                    class="game-block-cell"
+                                                    rx={blockRoundness}
+                                                    ry={blockRoundness}
+                                                    x={(currentHoveringPlacement.x +
+                                                        part.x -
+                                                        bounds.relative.minX) *
+                                                        gridBlockWidth +
+                                                        previewHoverPadding}
+                                                    y={(currentHoveringPlacement.y +
+                                                        part.y -
+                                                        bounds.relative.minY) *
+                                                        gridBlockHeight +
+                                                        previewHoverPadding}
+                                                    width={gridBlockWidth -
+                                                        previewHoverPadding * 2}
+                                                    height={gridBlockHeight -
+                                                        previewHoverPadding * 2}
+                                                    fill={"white"}
+                                                ></rect>
+                                            {/each}
+    
+                                            {#each block.cardinalTwoPairs as pair}
+                                                <path
+                                                    class="game-block-cell"
+                                                    d={`M ${(pair.x1 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y1 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2} L ${(pair.x2 + currentHoveringPlacement.x - bounds.relative.minX) * gridBlockWidth + gridBlockWidth / 2} ${(pair.y2 + currentHoveringPlacement.y - bounds.relative.minY) * gridBlockHeight + gridBlockHeight / 2}`}
+                                                    stroke-width={gridBlockWidth -
+                                                        previewOutlineWidth * 2}
+                                                    stroke={"#333"}
+                                                ></path>
+                                            {/each}
+                                            {#each block.parts as part}
+                                                <rect
+                                                    class="game-block-cell"
+                                                    rx={blockRoundness -
+                                                        previewOutlineWidth}
+                                                    ry={blockRoundness -
+                                                        previewOutlineWidth}
+                                                    x={(currentHoveringPlacement.x +
+                                                        part.x -
+                                                        bounds.relative.minX) *
+                                                        gridBlockWidth +
+                                                        previewOutlineWidth}
+                                                    y={(currentHoveringPlacement.y +
+                                                        part.y -
+                                                        bounds.relative.minY) *
+                                                        gridBlockHeight +
+                                                        previewOutlineWidth}
+                                                    width={gridBlockWidth -
+                                                        previewOutlineWidth * 2}
+                                                    height={gridBlockHeight -
+                                                        previewOutlineWidth * 2}
+                                                    fill={"#333"}
+                                                ></rect>
+                                            {/each}
+                                        </mask>
+                                    </defs>
+                                    <g>
+                                        <g>
+                                            <rect
+                                                class="block-fill-preview"
+                                                mask="url(#block-mask-drop-preview)"
+                                                x="0"
+                                                y="0"
+                                                width={(bounds.absolute.maxX + 1) *
+                                                    gridBlockWidth}
+                                                height={(bounds.absolute.maxY + 1) *
+                                                    gridBlockHeight}
+                                                fill={currentPlacementInvalid
+                                                    ? "var(--error)"
+                                                    : "var(--success)"}
+                                            ></rect>
+                                        </g>
                                     </g>
-                                </g>
-                            </svg>
-                        </div>
-                    {/if}
+                                </svg>
+                            </div>
+                        {/if}
+                    </div>
                 </div>
             </div>
         </div>
@@ -1652,7 +1653,11 @@
             ease-in-out;
     }
     .game-block-transform-wrapper:has(.block-dragging) {
-        z-index: 9999999999999;
+        z-index: 9999999999999 !important;
+    }
+    .block-dragging * {
+        z-index: 9999999999999 !important;
+        
     }
     .game-block-transform-wrapper:has(.block-dragging) .game-block-shadow-wrapper {
         
@@ -1665,7 +1670,7 @@
     .game-block.block-dragging {
         --scale-mult: 0.7;
         animation: unset !important;
-        z-index: 9999999;
+        z-index: 9999999999999;
     }
     .game-block-svg {
         position: absolute;
@@ -1689,7 +1694,7 @@
     .preview-mask-wrapper {
         pointer-events: none !important;
         position: absolute;
-        z-index: 999;
+        z-index: 99999999;
         top: -30px;
         left: -30px;
         overflow: hidden;
