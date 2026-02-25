@@ -7,13 +7,20 @@
     import { sineInOut } from "svelte/easing";
     let gameSplash: HTMLElement | null = null;
     let gameDate: HTMLElement | null = null;
+    import SignalsLogo from "$lib/assets/signals.svg";
+    
+    let showResultsModal = $state(false)
 
     let DTGCore: DTGameCore;
     let isWebKit = $state(false);
-    
-    let {difficulty}: {
-      difficulty: "easy" | "medium" | "hard"
-    } = $props()
+
+    let timerValue = $state(0);
+
+    let {
+        difficulty,
+    }: {
+        difficulty: "easy" | "medium" | "hard";
+    } = $props();
 
     let gridX = $state(6);
     let gridY = $state(6);
@@ -32,10 +39,10 @@
 
     let path: { x: number; y: number }[] = $state([{ x: -10, y: -10 }]);
     let difficulties = {
-      "easy": { gridX: 6, gridY: 6, waypoints: 2, rdx: 1 },
-        "medium": { gridX: 7, gridY: 7, waypoints: 6, rdx: 8 },
-        "hard": { gridX: 9, gridY: 8, waypoints: 8, rdx: 24 },
-        "insane": { gridX: 8, gridY: 8, waypoints: 12, rdx: 55 },
+        easy: { gridX: 6, gridY: 6, waypoints: 2, rdx: 1123 },
+        medium: { gridX: 7, gridY: 7, waypoints: 6, rdx: 84123414 },
+        hard: { gridX: 9, gridY: 8, waypoints: 8, rdx: 21344414 },
+        insane: { gridX: 8, gridY: 8, waypoints: 12, rdx: 5234445 },
     };
     type Block = {
         position: { x: number; y: number };
@@ -67,18 +74,27 @@
             typeof window.webkitConvertPointFromNodeToPage === "function" ||
             "webkitRequestAnimationFrame" in window;
     });
-    async function initializeGame(difficulty: {
+
+    function incrementTimer() {
+      if(!showHowTo && !gameOver)
+        timerValue += 1;
+        if (gameOver) return;
+        setTimeout(() => {
+            incrementTimer();
+        }, 1000);
+    }
+    async function initializeGame(diff: {
         gridX: number;
         gridY: number;
         waypoints: number;
         rdx: number;
     }) {
-      disableInput = false;
-        gridX = difficulty.gridX;
-        gridY = difficulty.gridY;
-        maxWaypoints = difficulty.waypoints;
+        disableInput = false;
+        gridX = diff.gridX;
+        gridY = diff.gridY;
+        maxWaypoints = diff.waypoints;
         DTGCore = new DTGameCore(gameSplash, gameDate);
-        for (let i = 0; i < difficulty.rdx; i++) {
+        for (let i = 0; i < diff.rdx; i++) {
             DTGCore.randomFloat();
         }
         window.DTGCore = DTGCore;
@@ -97,6 +113,21 @@
         await tick();
         onResize();
         splashReady = true;
+
+        let savedData = loadData("signals-today-" + difficulty);
+        if (savedData != null && savedData.date == gameSeed) {
+            console.log(savedData);
+            savedData.blocks.forEach((b: any) => {
+                let i = blocks.findIndex((blok) => {
+                    return blok.id == b.id;
+                });
+                if (b.placed) {
+                    placeBlock(blocks[i], b.position, true);
+                }
+            });
+            timerValue = savedData.timeElapsed;
+            gameOver = savedData.over;
+        }
     }
 
     function genRandomId() {
@@ -765,24 +796,27 @@
         block: Block,
         pos: { x: number; y: number },
     ) {
-        block.cssPosition.set(pos).then(()=>{
-          block.isCurrentlyAnimating = false;
-          
-          console.log('aaaasdfasdf')
-        })
+        block.cssPosition.set(pos).then(() => {
+            block.isCurrentlyAnimating = false;
+
+            console.log("aaaasdfasdf");
+        });
     }
-
-    function playGame() {
-        DTGCore.hideSplashScreen();
-
-        // if (gameOver) {
-        //     finishGame();
-        // }
-        // let firstTime = localStorage.getItem("firstTimePlayed") == null;
-        // if (firstTime) {
-        //     localStorage.setItem("firstTimePlayed", "true");
-        //     showHowTo = true;
-        // }
+    let showHowTo = $state(false);
+    let gameOver = $state(false);
+    export function playGame() {
+        console.log("asdfasdfasdfasdfasdfasdf");
+        if (gameOver) {
+            finishGame();
+            return;
+        }
+        let firstTime = localStorage.getItem("firstTimePlayed") == null;
+        console.log(firstTime);
+        if (firstTime) {
+            localStorage.setItem("firstTimePlayed", "true");
+            showHowTo = true;
+        }
+        incrementTimer();
     }
     let occupiedSpaces: boolean[][] = $state(new Array(gridX));
 
@@ -836,10 +870,12 @@
                 });
             }
         });
+        if (instant) return;
         console.log(validateWin());
         if (validateWin()) {
-            gameCompleteEffect();
+            finishGame();
         }
+        saveGameProgress();
     }
 
     function repositionBlocks() {
@@ -853,6 +889,60 @@
                     { instant: true },
                 );
         });
+    }
+
+    let gameSeed = new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date());
+
+    function saveGameToHistory() {
+        let history = loadData("signals-history") ?? [];
+        // //if there is history for today, update that history, otherwise add to the list
+        // let found = false;
+        // history.forEach((e: { date: any; wordsFound: any }) => {
+        //     if (e.date == gameSeed && !found) {
+        //         e.wordsFound = wordsFound;
+        //         found = true;
+        //         return;
+        //     }
+        // });
+        // if (!found) {
+        //     history.push({ date: gameSeed, wordsFound: wordsFound });
+        // }
+        saveData("signals-history", history);
+    }
+
+    function saveGameProgress() {
+        let blocksSaveData: any = [];
+        blocks.forEach((b) => {
+            blocksSaveData.push({
+                position: $state.snapshot(b.position),
+                id: b.id,
+                placed: b.placed,
+            });
+        });
+        let gameObject = {
+            over: gameOver,
+            date: gameSeed,
+            blocks: blocksSaveData,
+            timeElapsed: timerValue,
+        };
+        saveData("signals-today-" + difficulty, gameObject);
+
+        console.log("Game Progress Saved");
+    }
+
+    function saveData(id: string, data: any) {
+        localStorage.setItem(id, JSON.stringify(data));
+        console.log("Saved data.");
+    }
+
+    function loadData(id: string) {
+        let item = localStorage.getItem(id);
+        if (item != null) return JSON.parse(item);
+        else return null;
     }
 
     let gameGrid: HTMLElement | null = $state(null);
@@ -1024,6 +1114,11 @@
             blockPathWidth = 16;
             blockRoundness = 12;
         }
+        if(gameOver) {
+          blockRoundness = 6;
+          verticalBlockPadding = 0;
+          horizontalBlockPadding = 0;
+        }
     }
 
     let gameDoneState = $state(false);
@@ -1039,8 +1134,13 @@
         easing: sineInOut,
     });
     let disableInput = $state(false);
+
+    function finishGame() {
+        gameOver = true;
+        gameCompleteEffect();
+    }
     function gameCompleteEffect() {
-      disableInput = true;
+        disableInput = true;
         setTimeout(() => {
             if (completePath == null) return;
             let length = completePath?.getTotalLength();
@@ -1060,20 +1160,100 @@
                     gameDoneSpring.set(1, {
                         preserveMomentum: 1,
                     });
+                    setTimeout(()=>{
+                      showResultsModal = true
+                    }, 1000)
                 }, 100);
             }, 2000);
         }, 1000);
     }
+    
+    const mobileCheck = function () {
+        let check = false;
+        (function (a) {
+            if (
+                /(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(
+                    a,
+                ) ||
+                /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(
+                    a.substr(0, 4),
+                )
+            )
+                check = true;
+        })(navigator.userAgent || navigator.vendor);
+        return check;
+    };
+    
+    function capitalize(str: string) {
+        if (typeof str !== "string" || str.length === 0) {
+            return "";
+        }
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+    let completeCopyFormat = "{0}\nI completed today's {1} Signals puzzle in {2} \n{3}";
+    function copyResultsString() {
+        let date = new Intl.DateTimeFormat("en-US", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+        }).format(new Date());
+        if (mobileCheck()) {
+            navigator.share({
+                text: DTGCore.formatString(
+                    completeCopyFormat,
+                    date,
+                    difficulty,
+                    `${Math.floor(timerValue / 60)}:${timerValue % 60 < 10
+                        ? "0" + (timerValue % 60)
+                        : timerValue % 60}`,
+                    window.location.href,
+                ),
+                url: window.location.href,
+            });
+        } else {
+            DTGCore.showToast("Results copied to clipboard!", "ti-clipboard");
+            DTGCore.copyToClipboard(
+                DTGCore.formatString(
+                    completeCopyFormat,
+                    date,
+                    difficulty,
+                    `${Math.floor(timerValue / 60)}:${timerValue % 60 < 10
+                        ? "0" + (timerValue % 60)
+                        : timerValue % 60}`,
+                    window.location.href,
+                ),
+            );
+        }
+    }
 </script>
 
 <svelte:window onresize={onResize} />
+<header>
+    <div class="header-group header-group-left">
+        <!-- <img
+            id="dt-logo"
+            src={DTLogo}
+            width="auto"
+            style="cursor: pointer;"
+            alt="Daily Trojan Logo"
+        />
+         -->
+    </div>
+    <h1>Signals</h1>
+    <div class="header-group header-group-right">
+        <button
+            class="icon-button"
+            onclick={() => {
+                showHowTo = true;
+            }}
+        >
+            <i class="ti ti-help"></i>
+        </button>
+    </div>
+</header>
 
 <main>
     <div class="game-wrapper">
-        <div class="top-details">
-            <div class="word-container" id="word-container"></div>
-            <div class="points-bar"></div>
-        </div>
         <div class="game-zone">
             <div
                 class="game-grid"
@@ -1095,8 +1275,13 @@
                         {/each}
                     {/each}
                 </div>
+                {#if gameDoneState}
+                    <div class="flex-hor" style:margin-top="20px">
+                        <button onclick={()=>{showResultsModal = true}}>View Results</button></div>
+                    {/if}
                 <div
                     class="game-block-selectors"
+                    class:selectors-hidden={gameOver}
                     bind:this={gameBlockSelectors}
                 >
                     {#each blocks as block, i (block.id)}
@@ -1166,7 +1351,8 @@
                             block.isCurrentlyAnimating
                                 ? "1"
                                 : "0"}
-                            class:ignore-all-events={!block.placed || disableInput}
+                            class:ignore-all-events={!block.placed ||
+                                disableInput}
                             class="game-block-transform-wrapper"
                             class:game-complete-block={gameDoneState}
                             class:game-block-selectable={!block.placed}
@@ -1363,6 +1549,60 @@
         </div>
     </div>
 </main>
+
+<div class="modal-wrapper" id="result-modal" class:modal-visible={showHowTo}>
+    <div class="modal-content">
+        <div class="modal-inner">
+            <h1 id="modal-title">How to play</h1>
+            <button
+                class="close-button"
+                aria-label="close"
+                onclick={() => {
+                    showHowTo = false;
+                }}><i class="ti ti-x"></i></button
+            >
+            <h2 style:font-weight="normal">
+                Fill the grid with all the blocks to connect the signal.
+            </h2>
+            <h2 style:font-weight="normal">Blocks cannot be rotated.</h2>
+        </div>
+    </div>
+</div>
+<div class="modal-wrapper" id="result-modal" class:modal-visible={showResultsModal}>
+    <div class="modal-content">
+        <div class="modal-inner">
+            <img width="80" src={SignalsLogo} alt="signals logo" />
+            <h1 id="modal-title">Good job!</h1>
+            <h2 style:font-weight="normal">
+                You finished the <strong>{difficulty}</strong> puzzle in
+                <strong>{Math.floor(timerValue / 60)}:{timerValue % 60 < 10
+                    ? "0" + (timerValue % 60)
+                    : timerValue % 60}.</strong>
+            </h2>
+            <button
+                class="close-button"
+                aria-label="close"
+                onclick={() => {
+                    showResultsModal = false;
+                }}><i class="ti ti-x"></i></button
+            >
+            <div class="flex-hor">
+                <button
+                    onclick={() => {
+                        DTGCore.homeRedirect();
+                    }}><i class="ti ti-device-gamepad"></i>All Games</button
+                >
+                <button class="button-share" onclick={copyResultsString}
+                    ><i class="ti ti-share"></i> Share Results</button
+                >
+            </div>
+            <a
+                href="https://docs.google.com/forms/d/e/1FAIpQLSfzk0dC8SsfzfbbCXP4_YOsIw6ja_9zdOIVki3L48HX9QH-pg/viewform?usp=dialog"
+                >Help us improve Signals! <u>Share your feedback.</u></a
+            >
+        </div>
+    </div>
+</div>
 
 {#snippet blockSVG(block: Block)}
     {@const bounds = boundsOfArray([
@@ -1573,6 +1813,12 @@
 {/snippet}
 
 <style>
+    .icon-button {
+        border: none;
+        min-width: 0;
+        flex-basis: unset !important;
+        background: transparent !important;
+    }
     .game-wrapper {
         display: flex;
         flex-direction: column;
@@ -1584,7 +1830,15 @@
     .game-grid {
         flex-grow: 1;
     }
-    
+
+    .modal-wrapper {
+        z-index: 1099999990;
+    }
+    .modal-inner {
+        padding: 30px;
+        box-sizing: border-box;
+    }
+
     .game-splash-inner {
         display: flex;
         flex-direction: column;
@@ -1659,7 +1913,11 @@
         grid-template-rows: repeat(auto-fill, 70px);
         grid-auto-flow: column;
         grid-auto-columns: 1fr;
+        transition: opacity 0.4s;
         max-height: 230px;
+    }
+    .selectors-hidden {
+        opacity: 0;
     }
     .game-grid-cell {
         background: var(--raised-surface);
@@ -1729,6 +1987,9 @@
     .game-block:has(.game-block-cell:hover):not(.game-block-locked) {
         --scale-hover-mult: 1.02;
         z-index: 99999;
+    }
+    .modal-content .flex-hor {
+        margin-bottom: 20px;
     }
     .game-block-transform-wrapper:has(.game-block-cell:hover) {
         z-index: 99999;
@@ -1847,7 +2108,6 @@
             height: 80px;
         }
         .game-block-selectors {
-            
             grid-template-rows: repeat(auto-fill, 80px);
         }
     }
