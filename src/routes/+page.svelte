@@ -24,7 +24,7 @@
         </div>
         <div class="flex-hor">
             <button id="game-back-button">Back</button>
-            <button id="game-action-button" onclick={()=>{goto("/" + difficulty)}}>Play</button>
+            <button id="game-action-button" onclick={()=>{goto("./" + difficulty)}}>Play</button>
         </div>
         <p id="splash-date">date</p>
         <p id="splash-date">Game by Noah Pinales</p>
