@@ -2,7 +2,7 @@
     import "$lib/dailytrojan-lib/gameStyles.css"
 	import "$lib/dailytrojan-lib/icons/tabler-icons.css"
 	import "$lib/dailytrojan-lib/fonts/fonts.css"
-	import favicon from '$lib/assets/favicon.png';
+	import favicon from '$lib/assets/signals.png';
 	import "$lib/main.css"
 
 	let { children } = $props();
