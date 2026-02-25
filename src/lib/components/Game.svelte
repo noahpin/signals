@@ -18,8 +18,10 @@
 
     let {
         difficulty,
+        anotherDifficulty=()=>{}
     }: {
         difficulty: "easy" | "medium" | "hard";
+        anotherDifficulty: ()=>void
     } = $props();
 
     let gridX = $state(6);
@@ -39,10 +41,10 @@
 
     let path: { x: number; y: number }[] = $state([{ x: -10, y: -10 }]);
     let difficulties = {
-        easy: { gridX: 6, gridY: 6, waypoints: 2, rdx: 1123 },
-        medium: { gridX: 7, gridY: 7, waypoints: 6, rdx: 84123414 },
-        hard: { gridX: 9, gridY: 8, waypoints: 8, rdx: 21344414 },
-        insane: { gridX: 8, gridY: 8, waypoints: 12, rdx: 5234445 },
+        easy: { gridX: 6, gridY: 6, waypoints: 2, rdx: 3 },
+        medium: { gridX: 7, gridY: 7, waypoints: 6, rdx: 4 },
+        hard: { gridX: 9, gridY: 8, waypoints: 8, rdx: 8 },
+        insane: { gridX: 8, gridY: 8, waypoints: 12, rdx: 32 },
     };
     type Block = {
         position: { x: number; y: number };
@@ -602,6 +604,9 @@
                 }
             });
         });
+        
+        
+        console.log($state.snapshot(blocks))
     }
 
     let selectedBlock: Block | null;
@@ -1586,6 +1591,11 @@
                     showResultsModal = false;
                 }}><i class="ti ti-x"></i></button
             >
+            <div class="flex-hor">
+                <button class="button-share" onclick={anotherDifficulty}
+                    >Play Another Difficulty</button
+                >
+            </div>
             <div class="flex-hor">
                 <button
                     onclick={() => {

@@ -7,6 +7,7 @@
     let gameStart = $state(false);
     let gameComponent: Game | null = $state(null)
     let complete = $state([false, false, false])
+    let difficulties: ("easy" | "medium" | "hard")[] = ["easy", "medium", "hard"]
     
     let gameSeed = new Intl.DateTimeFormat("en-US", {
         year: "numeric",
@@ -46,6 +47,18 @@
     onMount(()=>{
       updateSplash();
     })
+    
+    function playAnotherDifficulty() {
+      updateSplash();
+      for(let i = 0; i < complete.length; i++) {
+        if(!complete[i]) {
+          difficulty = difficulties[i]
+          break;
+        }
+        
+      }
+      gameStart = false;
+    }
 </script>
 
 <div
@@ -110,7 +123,7 @@
 
 
 {#key difficulty}
-<Game {difficulty} bind:this={gameComponent}></Game>
+<Game {difficulty} anotherDifficulty={playAnotherDifficulty} bind:this={gameComponent}></Game>
 {/key}
 <style>
     .difficulty-selector {
@@ -126,7 +139,10 @@
         border: none;
         margin: 0 !important;
         gap: 4px;
+    }
+    .difficulty-option:has(i ) {
         padding-left: 8px;
+        
     }
     .difficulty-option:hover {
         color: black !important;
