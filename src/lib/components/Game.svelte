@@ -765,8 +765,11 @@
         block: Block,
         pos: { x: number; y: number },
     ) {
-        await block.cssPosition.set(pos);
-        block.isCurrentlyAnimating = false;
+        block.cssPosition.set(pos).then(()=>{
+          block.isCurrentlyAnimating = false;
+          
+          console.log('aaaasdfasdf')
+        })
     }
 
     function playGame() {
