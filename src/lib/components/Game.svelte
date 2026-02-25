@@ -8,8 +8,8 @@
     let gameSplash: HTMLElement | null = null;
     let gameDate: HTMLElement | null = null;
     import SignalsLogo from "$lib/assets/signals.svg";
-    
-    let showResultsModal = $state(false)
+
+    let showResultsModal = $state(false);
 
     let DTGCore: DTGameCore;
     let isWebKit = $state(false);
@@ -18,10 +18,10 @@
 
     let {
         difficulty,
-        anotherDifficulty=()=>{}
+        anotherDifficulty = () => {},
     }: {
-        difficulty: "easy" | "medium" | "hard";
-        anotherDifficulty: ()=>void
+        difficulty: "easy" | "medium" | "hard" | "infinite";
+        anotherDifficulty: () => void;
     } = $props();
 
     let gridX = $state(6);
@@ -41,10 +41,36 @@
 
     let path: { x: number; y: number }[] = $state([{ x: -10, y: -10 }]);
     let difficulties = {
-        easy: { gridX: 6, gridY: 6, waypoints: 2, rdx: 3 },
-        medium: { gridX: 7, gridY: 7, waypoints: 6, rdx: 4 },
-        hard: { gridX: 9, gridY: 8, waypoints: 8, rdx: 8 },
-        insane: { gridX: 8, gridY: 8, waypoints: 12, rdx: 32 },
+        easy: [
+            { gridX: 6, gridY: 6, waypoints: 2, rdx: 3 },
+            { gridX: 6, gridY: 5, waypoints: 2, rdx: 2 },
+            { gridX: 6, gridY: 6, waypoints: 3, rdx: 1 },
+        ],
+        medium: [
+            { gridX: 7, gridY: 7, waypoints: 6, rdx: 4 },
+            { gridX: 7, gridY: 7, waypoints: 7, rdx: 6 },
+            { gridX: 8, gridY: 8, waypoints: 8, rdx: 3 },
+            { gridX: 8, gridY: 7, waypoints: 7, rdx: 2 },
+            { gridX: 8, gridY: 7, waypoints: 6, rdx: 1 },
+        ],
+        hard: [
+            { gridX: 9, gridY: 8, waypoints: 8, rdx: 8 },
+            { gridX: 9, gridY: 9, waypoints: 10, rdx: 7 },
+            { gridX: 9, gridY: 8, waypoints: 10, rdx: 6 },
+        ],
+        infinite: [
+            { gridX: 6, gridY: 6, waypoints: 2, rdx: 3 },
+            { gridX: 6, gridY: 5, waypoints: 2, rdx: 2 },
+            { gridX: 6, gridY: 6, waypoints: 3, rdx: 1 },
+            { gridX: 7, gridY: 7, waypoints: 6, rdx: 4 },
+            { gridX: 7, gridY: 7, waypoints: 7, rdx: 6 },
+            { gridX: 8, gridY: 8, waypoints: 8, rdx: 3 },
+            { gridX: 8, gridY: 7, waypoints: 7, rdx: 2 },
+            { gridX: 8, gridY: 7, waypoints: 6, rdx: 1 },
+            { gridX: 9, gridY: 8, waypoints: 8, rdx: 8 },
+            { gridX: 9, gridY: 9, waypoints: 10, rdx: 7 },
+            { gridX: 9, gridY: 8, waypoints: 10, rdx: 6 },
+        ],
     };
     type Block = {
         position: { x: number; y: number };
@@ -67,7 +93,8 @@
     let gameBlockSelectors: HTMLElement | null = $state(null);
 
     onMount(async () => {
-        initializeGame(difficulties[difficulty]);
+        DTGCore = new DTGameCore(null, null);
+        initializeGame(difficulty);
         window.initGame = initializeGame;
         //@ts-ignore
         window.gameCompleteEffect = gameCompleteEffect;
@@ -78,25 +105,24 @@
     });
 
     function incrementTimer() {
-      if(!showHowTo && !gameOver)
-        timerValue += 1;
+        if (!showHowTo && !gameOver) timerValue += 1;
         if (gameOver) return;
         setTimeout(() => {
             incrementTimer();
         }, 1000);
     }
-    async function initializeGame(diff: {
-        gridX: number;
-        gridY: number;
-        waypoints: number;
-        rdx: number;
-    }) {
+    async function initializeGame(
+        diff: "easy" | "medium" | "hard" | "infinite",
+    ) {
+        if (diff == "infinite") {
+            DTGCore.initRNG(Math.random().toString(36).substr(2, 9));
+        }
+        let d = DTGCore.randomArrayElement(difficulties[diff]);
         disableInput = false;
-        gridX = diff.gridX;
-        gridY = diff.gridY;
-        maxWaypoints = diff.waypoints;
-        DTGCore = new DTGameCore(gameSplash, gameDate);
-        for (let i = 0; i < diff.rdx; i++) {
+        gridX = d.gridX;
+        gridY = d.gridY;
+        maxWaypoints = d.waypoints;
+        for (let i = 0; i < d.rdx; i++) {
             DTGCore.randomFloat();
         }
         window.DTGCore = DTGCore;
@@ -118,17 +144,22 @@
 
         let savedData = loadData("signals-today-" + difficulty);
         if (savedData != null && savedData.date == gameSeed) {
-            console.log(savedData);
-            savedData.blocks.forEach((b: any) => {
-                let i = blocks.findIndex((blok) => {
-                    return blok.id == b.id;
+            if (difficulty == "infinite") {
+                infiniteGamesPlayed = savedData.infiniteGamesPlayed;
+                console.log(savedData);
+            } else {
+                console.log(savedData);
+                savedData.blocks.forEach((b: any) => {
+                    let i = blocks.findIndex((blok) => {
+                        return blok.id == b.id;
+                    });
+                    if (b.placed) {
+                        placeBlock(blocks[i], b.position, true);
+                    }
                 });
-                if (b.placed) {
-                    placeBlock(blocks[i], b.position, true);
-                }
-            });
-            timerValue = savedData.timeElapsed;
-            gameOver = savedData.over;
+                timerValue = savedData.timeElapsed;
+                gameOver = savedData.over;
+            }
         }
     }
 
@@ -604,11 +635,10 @@
                 }
             });
         });
-        
-        
-        console.log($state.snapshot(blocks))
-    }
 
+        console.log($state.snapshot(blocks));
+    }
+    let infiniteGamesPlayed = $state(0);
     let selectedBlock: Block | null;
     let pPointer: { x: number; y: number } = { x: 0, y: 0 };
     let dragSway = $state(0);
@@ -821,7 +851,7 @@
             localStorage.setItem("firstTimePlayed", "true");
             showHowTo = true;
         }
-        incrementTimer();
+        if (difficulty != "infinite") incrementTimer();
     }
     let occupiedSpaces: boolean[][] = $state(new Array(gridX));
 
@@ -920,23 +950,32 @@
     }
 
     function saveGameProgress() {
-        let blocksSaveData: any = [];
-        blocks.forEach((b) => {
-            blocksSaveData.push({
-                position: $state.snapshot(b.position),
-                id: b.id,
-                placed: b.placed,
+        if (difficulty != "infinite") {
+            let blocksSaveData: any = [];
+            blocks.forEach((b) => {
+                blocksSaveData.push({
+                    position: $state.snapshot(b.position),
+                    id: b.id,
+                    placed: b.placed,
+                });
             });
-        });
-        let gameObject = {
-            over: gameOver,
-            date: gameSeed,
-            blocks: blocksSaveData,
-            timeElapsed: timerValue,
-        };
-        saveData("signals-today-" + difficulty, gameObject);
+            let gameObject = {
+                over: gameOver,
+                date: gameSeed,
+                blocks: blocksSaveData,
+                timeElapsed: timerValue,
+            };
+            saveData("signals-today-" + difficulty, gameObject);
 
-        console.log("Game Progress Saved");
+            console.log("Game Progress Saved");
+        } else {
+            let gameObject = {
+                infiniteGamesPlayed: infiniteGamesPlayed,
+                date: gameSeed,
+            };
+            saveData("signals-today-" + difficulty, gameObject);
+            console.log("Game Progress Saved");
+        }
     }
 
     function saveData(id: string, data: any) {
@@ -1093,8 +1132,9 @@
     let horizontalBlockPadding = $state(2);
     let blockPathWidth = $state(16);
 
-    async function onResize() {
-        if (window.innerWidth <= 500 && maxGridWidth != 300) {
+    async function onResize(force = false) {
+        if (window.innerWidth <= 500) {
+            if (maxGridWidth == 300 && !force) return;
             maxGridWidth = 300;
             verticalBlockPadding = 6;
             horizontalBlockPadding = 1;
@@ -1106,7 +1146,8 @@
             repositionBlocks();
             blockPathWidth = 12;
             blockRoundness = 8;
-        } else if (window.innerWidth > 500 && maxGridWidth != 400) {
+        } else if (window.innerWidth > 500) {
+            if (maxGridWidth == 400 && !force) return;
             maxGridWidth = 400;
             verticalBlockPadding = 7;
             horizontalBlockPadding = 2;
@@ -1119,10 +1160,10 @@
             blockPathWidth = 16;
             blockRoundness = 12;
         }
-        if(gameOver) {
-          blockRoundness = 6;
-          verticalBlockPadding = 0;
-          horizontalBlockPadding = 0;
+        if (gameOver) {
+            blockRoundness = 6;
+            verticalBlockPadding = 0;
+            horizontalBlockPadding = 0;
         }
     }
 
@@ -1131,6 +1172,16 @@
         stiffness: 0.15,
         damping: 0.22,
         precision: 0.0001,
+    });
+    let infiniteScaleSpring = new Spring(1, {
+        stiffness: 0.08,
+        damping: 0.35,
+        precision: 0.01,
+    });
+    let gameDoneRot = new Spring(0, {
+        stiffness: 0.06,
+        damping: 0.35,
+        precision: 0.01,
     });
 
     let completePath: SVGPathElement | null = $state(null);
@@ -1142,7 +1193,9 @@
 
     function finishGame() {
         gameOver = true;
+        if (difficulty == "infinite") infiniteGamesPlayed += 1;
         gameCompleteEffect();
+        saveGameProgress();
     }
     function gameCompleteEffect() {
         disableInput = true;
@@ -1165,14 +1218,38 @@
                     gameDoneSpring.set(1, {
                         preserveMomentum: 1,
                     });
-                    setTimeout(()=>{
-                      showResultsModal = true
-                    }, 1000)
+                    if (difficulty == "infinite")
+                        setTimeout(() => {
+                            infiniteNewGame();
+                        }, 1000);
+                    if (difficulty != "infinite")
+                        setTimeout(() => {
+                            showResultsModal = true;
+                        }, 1000);
                 }, 100);
             }, 2000);
         }, 1000);
     }
-    
+
+    let infiniteSpinOut = $state(false);
+
+    function infiniteNewGame() {
+        infiniteScaleSpring.set(0);
+        gameDoneRot.set(90);
+        setTimeout(() => {
+            disableInput = false;
+            gameOver = false;
+            gameDoneState = false;
+            completePath!.style.opacity = "0";
+            initializeGame("infinite");
+            onResize(true);
+            setTimeout(() => {
+                infiniteScaleSpring.set(1);
+                gameDoneRot.set(0);
+            }, 200);
+        }, 1000);
+    }
+
     const mobileCheck = function () {
         let check = false;
         (function (a) {
@@ -1188,14 +1265,15 @@
         })(navigator.userAgent || navigator.vendor);
         return check;
     };
-    
+
     function capitalize(str: string) {
         if (typeof str !== "string" || str.length === 0) {
             return "";
         }
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
-    let completeCopyFormat = "{0}\nI completed today's {1} Signals puzzle in {2} \n{3}";
+    let completeCopyFormat =
+        "{0}\nI completed today's {1} Signals puzzle in {2} \n{3}";
     function copyResultsString() {
         let date = new Intl.DateTimeFormat("en-US", {
             day: "2-digit",
@@ -1208,9 +1286,11 @@
                     completeCopyFormat,
                     date,
                     difficulty,
-                    `${Math.floor(timerValue / 60)}:${timerValue % 60 < 10
-                        ? "0" + (timerValue % 60)
-                        : timerValue % 60}`,
+                    `${Math.floor(timerValue / 60)}:${
+                        timerValue % 60 < 10
+                            ? "0" + (timerValue % 60)
+                            : timerValue % 60
+                    }`,
                     window.location.href,
                 ),
                 url: window.location.href,
@@ -1222,9 +1302,11 @@
                     completeCopyFormat,
                     date,
                     difficulty,
-                    `${Math.floor(timerValue / 60)}:${timerValue % 60 < 10
-                        ? "0" + (timerValue % 60)
-                        : timerValue % 60}`,
+                    `${Math.floor(timerValue / 60)}:${
+                        timerValue % 60 < 10
+                            ? "0" + (timerValue % 60)
+                            : timerValue % 60
+                    }`,
                     window.location.href,
                 ),
             );
@@ -1232,7 +1314,7 @@
     }
 </script>
 
-<svelte:window onresize={onResize} />
+<svelte:window onresize={() => onResize(false)} />
 <header>
     <div class="header-group header-group-left">
         <!-- <img
@@ -1260,12 +1342,18 @@
 <main>
     <div class="game-wrapper">
         <div class="game-zone">
+            {#if difficulty == "infinite"}
+                {infiniteGamesPlayed}
+            {/if}
             <div
                 class="game-grid"
                 bind:this={gameGrid}
                 style:width={`${gridBlockWidth * gridX}px`}
             >
-                <div class="game-actual-grid">
+                <div
+                    class="game-actual-grid"
+                    style:transform={`scale(${Math.max(infiniteScaleSpring.current, 0)}) rotate(${gameDoneRot.current}deg)`}
+                >
                     {#each Array(gridY) as _, y}
                         {#each Array(gridX) as _, x}
                             {#key blocks}
@@ -1280,10 +1368,15 @@
                         {/each}
                     {/each}
                 </div>
-                {#if gameDoneState}
+                {#if gameDoneState && difficulty != "infinite"}
                     <div class="flex-hor" style:margin-top="20px">
-                        <button onclick={()=>{showResultsModal = true}}>View Results</button></div>
-                    {/if}
+                        <button
+                            onclick={() => {
+                                showResultsModal = true;
+                            }}>View Results</button
+                        >
+                    </div>
+                {/if}
                 <div
                     class="game-block-selectors"
                     class:selectors-hidden={gameOver}
@@ -1339,7 +1432,7 @@
                 </div>
                 <div
                     class="grid-wrapper-scale"
-                    style:transform={`scale(${gameDoneSpring.current})`}
+                    style:transform={`scale(${gameDoneSpring.current * Math.max(infiniteScaleSpring.current, 0)}) rotate(${gameDoneRot.current}deg)`}
                     style:width={`${gridBlockWidth * gridX}px`}
                     style:height={`${gridBlockHeight * gridY}px`}
                 >
@@ -1573,16 +1666,22 @@
         </div>
     </div>
 </div>
-<div class="modal-wrapper" id="result-modal" class:modal-visible={showResultsModal}>
+<div
+    class="modal-wrapper"
+    id="result-modal"
+    class:modal-visible={showResultsModal}
+>
     <div class="modal-content">
         <div class="modal-inner">
             <img width="80" src={SignalsLogo} alt="signals logo" />
             <h1 id="modal-title">Good job!</h1>
             <h2 style:font-weight="normal">
                 You finished the <strong>{difficulty}</strong> puzzle in
-                <strong>{Math.floor(timerValue / 60)}:{timerValue % 60 < 10
-                    ? "0" + (timerValue % 60)
-                    : timerValue % 60}.</strong>
+                <strong
+                    >{Math.floor(timerValue / 60)}:{timerValue % 60 < 10
+                        ? "0" + (timerValue % 60)
+                        : timerValue % 60}.</strong
+                >
             </h2>
             <button
                 class="close-button"

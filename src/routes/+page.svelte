@@ -1,13 +1,14 @@
 <script lang="ts">
     import SignalsLogo from "$lib/assets/signals.svg";
     import { goto } from "$app/navigation";
-    let difficulty: "easy" | "medium" | "hard" = $state("easy");
+    let difficulty: "easy" | "medium" | "hard" | "infinite" = $state("easy");
     import Game from "$lib/components/Game.svelte";
     import { onMount } from "svelte";
     let gameStart = $state(false);
     let gameComponent: Game | null = $state(null)
     let complete = $state([false, false, false])
     let difficulties: ("easy" | "medium" | "hard")[] = ["easy", "medium", "hard"]
+    let allComplete = $derived(complete[0] && complete[1] && complete[2])
     
     let gameSeed = new Intl.DateTimeFormat("en-US", {
         year: "numeric",
@@ -41,6 +42,9 @@
         complete[2] = hardData.over
       }
       console.log(complete)
+      if(allComplete) {
+        difficulty = "infinite"
+      }
       
     }
     
@@ -70,7 +74,7 @@
         <img width="80" src={SignalsLogo} alt="Signals Logo" />
         <h1>Signals</h1>
         <h2 id="game-tagline">
-            Connect the signal by placing the blocks in order.
+            {allComplete ? "You've completed all the puzzles for today." : "Connect the signal by placing the blocks in order." }
         </h2>
         <div class="difficulty-selector">
             <button
@@ -104,6 +108,16 @@
                         <i class="ti ti-check"></i>
                         {/if}Hard</button
             >
+            
+            {#if allComplete}
+            <button
+                class="difficulty-option"
+                onclick={() => {
+                    difficulty = "infinite";
+                }}
+                class:active={difficulty == "infinite"}>Unlimited Mode</button
+            >
+            {/if}
         </div>
         <div class="flex-hor">
             <button id="game-back-button">Back</button>
@@ -128,11 +142,13 @@
 <style>
     .difficulty-selector {
         display: flex;
+        flex-wrap: wrap;
         background: #44a587;
         margin-bottom: 20px;
         border-radius: 14px;
         padding: 4px;
         gap: 2px;
+        justify-content: space-around;
     }
     .difficulty-option {
         background: transparent;
