@@ -1706,7 +1706,7 @@
                 >
             </div>
             <a
-                href="https://docs.google.com/forms/d/e/1FAIpQLSfzk0dC8SsfzfbbCXP4_YOsIw6ja_9zdOIVki3L48HX9QH-pg/viewform?usp=dialog"
+                href="https://forms.gle/cC1gkwQszo7L27Mm8"
                 >Help us improve Signals! <u>Share your feedback.</u></a
             >
         </div>
