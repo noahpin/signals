@@ -9,6 +9,7 @@
     let gameDate: HTMLElement | null = null;
     import SignalsLogo from "$lib/assets/signals.svg";
 
+    import NumberFlow from "@number-flow/svelte";
     let showResultsModal = $state(false);
 
     let DTGCore: DTGameCore;
@@ -98,6 +99,8 @@
         window.initGame = initializeGame;
         //@ts-ignore
         window.gameCompleteEffect = gameCompleteEffect;
+        //@ts-ignore
+        window.infinite = infiniteNewGame;
         //@ts-ignore
         isWebKit = //@ts-ignore
             typeof window.webkitConvertPointFromNodeToPage === "function" ||
@@ -1193,7 +1196,6 @@
 
     function finishGame() {
         gameOver = true;
-        if (difficulty == "infinite") infiniteGamesPlayed += 1;
         gameCompleteEffect();
         saveGameProgress();
     }
@@ -1231,23 +1233,72 @@
         }, 1000);
     }
 
-    let infiniteSpinOut = $state(false);
+    let infiniteRoundCountScale = new Spring(0, {
+        stiffness: 0.08,
+        damping: 0.2,
+        precision: 0.01,
+    });
+    let infiniteRoundCountRotation = new Spring(0, {
+        stiffness: 0.06,
+        damping: 0.18,
+        precision: 0.01,
+    });
+    
+    let roundCountVisible = $state(false)
+    let rainbow = $state(false);
+    
 
     function infiniteNewGame() {
         infiniteScaleSpring.set(0);
         gameDoneRot.set(90);
+        infiniteRoundCountScale.set(0, { instant: true });
+        infiniteRoundCountRotation.set(
+            Math.random() * 35 + (Math.random() > 0.5 ? -1 : 1) * 45,
+            {
+                instant: true,
+            },
+        );
         setTimeout(() => {
-            disableInput = false;
-            gameOver = false;
-            gameDoneState = false;
-            completePath!.style.opacity = "0";
-            initializeGame("infinite");
-            onResize(true);
+          roundCountVisible = true;
+            infiniteRoundCountScale.set(1);
+            infiniteRoundCountRotation.set(0);
             setTimeout(() => {
-                infiniteScaleSpring.set(1);
-                gameDoneRot.set(0);
-            }, 200);
-        }, 1000);
+                infiniteGamesPlayed += 1;
+                if((infiniteGamesPlayed + 1) % 10 == 0) {
+                  rainbow = true;
+                }
+                infiniteRoundCountScale.set(1.2);
+                infiniteRoundCountRotation.set(
+                    Math.random() * 10,
+                );
+                setTimeout(() => {
+                    infiniteRoundCountScale.set(1);
+                    infiniteRoundCountRotation.set(0);
+                }, 100);
+                setTimeout(() => {
+                    infiniteRoundCountScale.set(0);
+                    infiniteRoundCountRotation.set(
+                        Math.random() * 35 +
+                            (Math.random() > 0.5 ? -1 : 1) * 45,
+                    );
+
+                    disableInput = false;
+                    gameOver = false;
+                    gameDoneState = false;
+                    completePath!.style.opacity = "0";
+                    initializeGame("infinite");
+                    onResize(true);
+
+                    saveGameProgress();
+                    setTimeout(() => {
+                      roundCountVisible = false
+                        infiniteScaleSpring.set(1);
+                        gameDoneRot.set(0);
+                        rainbow = false;
+                    }, 400);
+                }, rainbow ? 1700 : 1200);
+            }, 600);
+        }, 500);
     }
 
     const mobileCheck = function () {
@@ -1343,7 +1394,9 @@
     <div class="game-wrapper">
         <div class="game-zone">
             {#if difficulty == "infinite"}
-                {infiniteGamesPlayed}
+                <span style:margin-bottom="10px" style:transition="opacity 0.2s" style:opacity={roundCountVisible ? 0 : 1}>
+                    Round {infiniteGamesPlayed + 1}</span
+                >
             {/if}
             <div
                 class="game-grid"
@@ -1642,6 +1695,21 @@
                             stroke-dashoffset={pathLength.current}
                         ></path>
                     </svg>
+                </div>
+                <div
+                    class="round-count"
+                    style:transform={`scale(${Math.max(infiniteRoundCountScale.current, 0)}) rotate(${infiniteRoundCountRotation.current}deg)`}
+                    style:width={`${gridBlockWidth * gridX}px`}
+                    style:height={`${gridBlockHeight * gridY}px`}
+                    style:opacity={roundCountVisible ? "1" : "0"}
+                >
+                    <div class="round-count-center">
+                        <p>ROUND</p>
+                        <div class="round-number" class:rainbow-rotate={rainbow}>
+                            <NumberFlow value={infiniteGamesPlayed + 1}
+                            ></NumberFlow>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1948,6 +2016,60 @@
         box-sizing: border-box;
     }
 
+    .round-count {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 999999999999;
+        transition: height 0.4s, opacity 0.25s;
+        pointer-events: none;
+    }
+    .round-count-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: "Nunito";
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0px;
+    }
+
+    .round-count-center p {
+        height: 2px !important;
+        margin: 0;
+        font-size: 18px;
+        font-weight: 500;
+    }
+
+    .round-number {
+        color: #00c29e;
+        font-size: 80px;
+        font-weight: 900;
+        margin: 0;
+    }
+    
+    :global(.dark-mode .round-number) {
+        color: #ffc400;
+        
+    }
+    
+    .rainbow-rotate {
+        
+        animation: 1.8s rainbow;
+        
+    }
+    @keyframes rainbow {
+        0% {
+            filter: hue-rotate(0deg)
+        }
+        100% {
+            filter: hue-rotate(360deg)
+        }
+    }
+
     .game-splash-inner {
         display: flex;
         flex-direction: column;
@@ -2023,7 +2145,7 @@
         grid-auto-flow: column;
         grid-auto-columns: 1fr;
         transition: opacity 0.4s;
-        max-height: 230px;
+        max-height: 300px;
     }
     .selectors-hidden {
         opacity: 0;
