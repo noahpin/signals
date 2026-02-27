@@ -184,4 +184,7 @@
         background: #73bf9c;
         z-index: 9999999999999999 !important;
     }
+    .game-splash-wrapper h1, .game-splash-wrapper h2, .game-splash-wrapper p {
+        color: #1b1b1b;
+    }
 </style>
