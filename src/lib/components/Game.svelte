@@ -2179,7 +2179,7 @@
         gap: 8px;
         margin-top: 0px;
         padding: 30px 0px;
-        overflow-x: auto;
+        overflow-x: hidden;
         overflow-y: hidden;
         box-sizing: border-box;
         transition: opacity 0.4s;
