@@ -715,7 +715,7 @@
         )
             return;
         if (e.pointerType === "touch") {
-            yOffset = 100;
+            yOffset = 60;
         }
         currentlyHovering = true;
         let current = selectedBlock.cssPosition.current;
