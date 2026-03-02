@@ -135,11 +135,15 @@
     </div>
 </div>
 
-
 {#key difficulty}
 <Game {difficulty} anotherDifficulty={playAnotherDifficulty} bind:this={gameComponent}></Game>
 {/key}
 <style>
+    .main {
+        overflow-y: auto;
+        width: 100%;
+        height: 100%;
+    }
     .difficulty-selector {
         display: flex;
         flex-wrap: wrap;
@@ -182,7 +186,7 @@
     }
     .game-splash-wrapper {
         background: #73bf9c;
-        z-index: 9999999999999999 !important;
+        z-index: 90 !important;
     }
     .game-splash-wrapper h1, .game-splash-wrapper h2, .game-splash-wrapper p {
         color: #1b1b1b;

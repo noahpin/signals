@@ -702,6 +702,7 @@
             }
         });
     }
+    let yOffset = 0;
 
     function pointerMove(e: PointerEvent) {
         if (!activelyDragging) return;
@@ -713,13 +714,16 @@
             selectedBlock.blockEl == null
         )
             return;
+        if (e.pointerType === "touch") {
+            yOffset = 100;
+        }
         currentlyHovering = true;
         let current = selectedBlock.cssPosition.current;
         let bRect = selectedBlock.blockEl.getBoundingClientRect();
         let grid = gameGrid.getBoundingClientRect();
         selectedBlock.cssPosition.set({
             x: e.clientX - grid.left - bRect.width / 2,
-            y: e.clientY - grid.top - bRect.height / 2,
+            y: e.clientY - yOffset - grid.top - bRect.height / 2,
         });
         selectedBlock.isCurrentlyAnimating = true;
         let sign = Math.sign(e.clientX - pPointer.x);
@@ -733,7 +737,7 @@
         }
 
         let x = e.clientX - grid.left;
-        let y = e.clientY - grid.top;
+        let y = e.clientY - grid.top - yOffset;
         let bounds = boundsOfArray(selectedBlock.parts);
         x -= (bounds.absolute.maxX * gridBlockWidth) / 2;
         y -= (bounds.absolute.maxY * gridBlockWidth) / 2;
@@ -796,7 +800,7 @@
         if (gameGrid == null) return;
         let grid = gameGrid.getBoundingClientRect();
         let x = e.clientX - grid.left;
-        let y = e.clientY - grid.top;
+        let y = e.clientY - yOffset - grid.top;
         let bounds = boundsOfArray(selectedBlock.parts);
         x -= (bounds.absolute.maxX * gridBlockWidth) / 2;
         y -= (bounds.absolute.maxY * gridBlockWidth) / 2;
@@ -1243,10 +1247,9 @@
         damping: 0.18,
         precision: 0.01,
     });
-    
-    let roundCountVisible = $state(false)
+
+    let roundCountVisible = $state(false);
     let rainbow = $state(false);
-    
 
     function infiniteNewGame() {
         infiniteScaleSpring.set(0);
@@ -1259,44 +1262,45 @@
             },
         );
         setTimeout(() => {
-          roundCountVisible = true;
+            roundCountVisible = true;
             infiniteRoundCountScale.set(1);
             infiniteRoundCountRotation.set(0);
             setTimeout(() => {
                 infiniteGamesPlayed += 1;
-                if((infiniteGamesPlayed + 1) % 10 == 0) {
-                  rainbow = true;
+                if ((infiniteGamesPlayed + 1) % 10 == 0) {
+                    rainbow = true;
                 }
                 infiniteRoundCountScale.set(1.2);
-                infiniteRoundCountRotation.set(
-                    Math.random() * 10,
-                );
+                infiniteRoundCountRotation.set(Math.random() * 10);
                 setTimeout(() => {
                     infiniteRoundCountScale.set(1);
                     infiniteRoundCountRotation.set(0);
                 }, 100);
-                setTimeout(() => {
-                    infiniteRoundCountScale.set(0);
-                    infiniteRoundCountRotation.set(
-                        Math.random() * 35 +
-                            (Math.random() > 0.5 ? -1 : 1) * 45,
-                    );
+                setTimeout(
+                    () => {
+                        infiniteRoundCountScale.set(0);
+                        infiniteRoundCountRotation.set(
+                            Math.random() * 35 +
+                                (Math.random() > 0.5 ? -1 : 1) * 45,
+                        );
 
-                    disableInput = false;
-                    gameOver = false;
-                    gameDoneState = false;
-                    completePath!.style.opacity = "0";
-                    initializeGame("infinite");
-                    onResize(true);
+                        disableInput = false;
+                        gameOver = false;
+                        gameDoneState = false;
+                        completePath!.style.opacity = "0";
+                        initializeGame("infinite");
+                        onResize(true);
 
-                    saveGameProgress();
-                    setTimeout(() => {
-                      roundCountVisible = false
-                        infiniteScaleSpring.set(1);
-                        gameDoneRot.set(0);
-                        rainbow = false;
-                    }, 400);
-                }, rainbow ? 1700 : 1200);
+                        saveGameProgress();
+                        setTimeout(() => {
+                            roundCountVisible = false;
+                            infiniteScaleSpring.set(1);
+                            gameDoneRot.set(0);
+                            rainbow = false;
+                        }, 400);
+                    },
+                    rainbow ? 1700 : 1200,
+                );
             }, 600);
         }, 500);
     }
@@ -1366,6 +1370,7 @@
 </script>
 
 <svelte:window onresize={() => onResize(false)} />
+<div class="whole-view">
 <header>
     <div class="header-group header-group-left">
         <!-- <img
@@ -1394,7 +1399,11 @@
     <div class="game-wrapper">
         <div class="game-zone">
             {#if difficulty == "infinite"}
-                <span style:margin-bottom="10px" style:transition="opacity 0.2s" style:opacity={roundCountVisible ? 0 : 1}>
+                <span
+                    style:margin-bottom="10px"
+                    style:transition="opacity 0.2s"
+                    style:opacity={roundCountVisible ? 0 : 1}
+                >
                     Round {infiniteGamesPlayed + 1}</span
                 >
             {/if}
@@ -1419,68 +1428,6 @@
                                     style:border-radius={`${blockRoundness}px`}
                                 ></div>{/key}
                         {/each}
-                    {/each}
-                </div>
-                {#if gameDoneState && difficulty != "infinite"}
-                    <div class="flex-hor" style:margin-top="20px">
-                        <button
-                            onclick={() => {
-                                showResultsModal = true;
-                            }}>View Results</button
-                        >
-                    </div>
-                {/if}
-                <div
-                    class="game-block-selectors"
-                    class:selectors-hidden={gameOver}
-                    bind:this={gameBlockSelectors}
-                >
-                    {#each blocks as block, i (block.id)}
-                        {@const bounds = boundsOfArray([
-                            ...block.parts.map((p) => ({
-                                x: block.truthPosition.x + p.x,
-                                y: block.truthPosition.y + p.y,
-                            })),
-                        ])}
-                        {#if !block.locked}
-                            <div
-                                class="block-selector-zone"
-                                bind:this={blocks[i].blockHome}
-                                style:pointer-events="none"
-                            >
-                                {#if !block.placed}
-                                    <div
-                                        style:opacity={block.dragging ||
-                                        block.isCurrentlyAnimating
-                                            ? "0"
-                                            : "1"}
-                                        class="game-block-transform-wrapper"
-                                        class:game-block-selectable={true}
-                                        style:width={(bounds.absolute.maxX +
-                                            1) *
-                                            gridBlockWidth +
-                                            "px"}
-                                        style:height={(bounds.absolute.maxY +
-                                            1) *
-                                            gridBlockHeight +
-                                            "px"}
-                                        style:top={"50%"}
-                                        style:--block-position-x={"-50%"}
-                                        style:--block-position-y={"-50%"}
-                                        style:left={"50%"}
-                                        style:--shadow-color={block.color
-                                            .darken(0.5)
-                                            .hex() as any as string}
-                                    >
-                                        <div
-                                            class:game-block-shadow-wrapper={!isWebKit}
-                                        >
-                                            {@render blockSVG(block)}
-                                        </div>
-                                    </div>
-                                {/if}
-                            </div>
-                        {/if}
                     {/each}
                 </div>
                 <div
@@ -1705,7 +1652,10 @@
                 >
                     <div class="round-count-center">
                         <p>ROUND</p>
-                        <div class="round-number" class:rainbow-rotate={rainbow}>
+                        <div
+                            class="round-number"
+                            class:rainbow-rotate={rainbow}
+                        >
                             <NumberFlow value={infiniteGamesPlayed + 1}
                             ></NumberFlow>
                         </div>
@@ -1715,6 +1665,68 @@
         </div>
     </div>
 </main>
+<div class="game-bottom">
+    {#if gameDoneState && difficulty != "infinite"}
+        <div class="flex-hor" style:margin-top="20px">
+            <button
+                onclick={() => {
+                    showResultsModal = true;
+                }}>View Results</button
+            >
+        </div>
+    {/if}
+    <div
+        class="game-block-selectors"
+        class:selectors-hidden={gameOver}
+        bind:this={gameBlockSelectors}
+    >
+        {#each blocks as block, i (block.id)}
+            {@const bounds = boundsOfArray([
+                ...block.parts.map((p) => ({
+                    x: block.truthPosition.x + p.x,
+                    y: block.truthPosition.y + p.y,
+                })),
+            ])}
+            {#if !block.locked}
+                <div
+                    class="block-selector-zone"
+                    bind:this={blocks[i].blockHome}
+                    style:pointer-events="none"
+                >
+                    {#if !block.placed}
+                        <div
+                            style:opacity={block.dragging ||
+                            block.isCurrentlyAnimating
+                                ? "0"
+                                : "1"}
+                            class="game-block-transform-wrapper"
+                            class:game-block-selectable={true}
+                            style:width={(bounds.absolute.maxX + 1) *
+                                gridBlockWidth +
+                                "px"}
+                            style:height={(bounds.absolute.maxY + 1) *
+                                gridBlockHeight +
+                                "px"}
+                            style:top={"50%"}
+                            style:--block-position-x={"-50%"}
+                            style:--block-position-y={"-50%"}
+                            style:left={"50%"}
+                            style:--shadow-color={block.color
+                                .darken(0.5)
+                                .hex() as any as string}
+                        >
+                            <div class:game-block-shadow-wrapper={!isWebKit}>
+                                {@render blockSVG(block)}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+        {/each}
+    </div>
+</div>
+
+</div>
 
 <div class="modal-wrapper" id="result-modal" class:modal-visible={showHowTo}>
     <div class="modal-content">
@@ -1773,8 +1785,7 @@
                     ><i class="ti ti-share"></i> Share Results</button
                 >
             </div>
-            <a
-                href="https://forms.gle/cC1gkwQszo7L27Mm8"
+            <a href="https://forms.gle/cC1gkwQszo7L27Mm8"
                 >Help us improve Signals! <u>Share your feedback.</u></a
             >
         </div>
@@ -1990,6 +2001,40 @@
 {/snippet}
 
 <style>
+.whole-view {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: scroll;
+}
+    main {
+        padding-top: 30px;
+        height: fit-content; 
+        flex-shrink: 1;
+        flex-grow: 0;
+        
+    }
+    .game-bottom {
+        background: var(--raised-surface-light);
+        z-index: 20;
+        flex-shrink: 0;
+        flex-grow: 1;
+        border-top: 1px solid var(--raised-surface);
+        margin-top: 30px;
+        padding: 0px 30px;
+        box-sizing: border-box;
+    }
+    @media (min-width: 800px) {
+        .game-bottom {
+            padding: 0px 100px; 
+        }
+    }
+    header {
+        position: unset !important;
+        flex-shrink: 0;
+        flex-grow: 0;
+    }
     .icon-button {
         border: none;
         min-width: 0;
@@ -2009,7 +2054,7 @@
     }
 
     .modal-wrapper {
-        z-index: 1099999990;
+        z-index: 60;
     }
     .modal-inner {
         padding: 30px;
@@ -2020,8 +2065,10 @@
         position: absolute;
         top: 0;
         left: 0;
-        z-index: 999999999999;
-        transition: height 0.4s, opacity 0.25s;
+        z-index: 70;
+        transition:
+            height 0.4s,
+            opacity 0.25s;
         pointer-events: none;
     }
     .round-count-center {
@@ -2050,23 +2097,20 @@
         font-weight: 900;
         margin: 0;
     }
-    
+
     :global(.dark-mode .round-number) {
         color: #ffc400;
-        
     }
-    
+
     .rainbow-rotate {
-        
         animation: 1.8s rainbow;
-        
     }
     @keyframes rainbow {
         0% {
-            filter: hue-rotate(0deg)
+            filter: hue-rotate(0deg);
         }
         100% {
-            filter: hue-rotate(360deg)
+            filter: hue-rotate(360deg);
         }
     }
 
@@ -2084,13 +2128,13 @@
     }
     .game-splash-wrapper {
         background: #73bf9c;
-        z-index: 9999999999999999 !important;
+        z-index: 90 !important;
     }
     .grid-wrapper-scale {
         position: absolute;
         top: 0;
         left: 0;
-        z-index: 999999999;
+        z-index: 50;
     }
     .game-zone {
         display: flex;
@@ -2112,8 +2156,7 @@
         position: absolute;
         top: 0;
         left: 0;
-        z-index: 99;
-        z-index: 999999;
+        z-index: 40;
         pointer-events: none;
         opacity: 1;
     }
@@ -2124,7 +2167,7 @@
     .block-selector-zone {
         width: 70px;
         height: 70px;
-        background: var(--raised-surface);
+        background: var(--raised-surface-heavy);
         border-radius: 100%;
         position: relative;
         z-index: 1;
@@ -2138,14 +2181,18 @@
         padding: 30px 0px;
         overflow-x: auto;
         overflow-y: hidden;
-
         box-sizing: border-box;
-        display: grid;
+        transition: opacity 0.4s;
+
+        /*display: grid;
         grid-template-rows: repeat(auto-fill, 70px);
         grid-auto-flow: column;
-        grid-auto-columns: 1fr;
-        transition: opacity 0.4s;
-        max-height: 300px;
+        grid-auto-columns: 1fr;*/
+        display: flex;
+        align-items: space-around;
+        align-content: flex-start;
+        justify-content: center;
+        flex-wrap: wrap;
     }
     .selectors-hidden {
         opacity: 0;
@@ -2157,11 +2204,11 @@
     }
     .game-grid-cell.source {
         outline: 4px solid blue;
-        z-index: 9999;
+        z-index: 10;
     }
     .game-grid-cell.sink {
         outline: 4px solid red;
-        z-index: 9999;
+        z-index: 10;
     }
     .game-block-cell {
         cursor: grab;
@@ -2217,13 +2264,13 @@
     }
     .game-block:has(.game-block-cell:hover):not(.game-block-locked) {
         --scale-hover-mult: 1.02;
-        z-index: 99999;
+        z-index: 20;
     }
     .modal-content .flex-hor {
         margin-bottom: 20px;
     }
     .game-block-transform-wrapper:has(.game-block-cell:hover) {
-        z-index: 99999;
+        z-index: 20;
     }
     .game-block-transform-wrapper.game-block-selectable {
         transform: translate(
@@ -2243,10 +2290,10 @@
             ease-in-out;
     }
     .game-block-transform-wrapper:has(.block-dragging) {
-        z-index: 9999999999999 !important;
+        z-index: 70 !important;
     }
     .block-dragging * {
-        z-index: 9999999999999 !important;
+        z-index: 70 !important;
     }
     .game-block-transform-wrapper:has(.block-dragging)
         .game-block-shadow-wrapper {
@@ -2259,14 +2306,14 @@
     .game-block.block-dragging {
         --scale-mult: 0.7;
         animation: unset !important;
-        z-index: 9999999999999;
+        z-index: 70;
     }
     .game-block-svg {
         position: absolute;
         top: 0;
         left: 0;
         pointer-events: none;
-        z-index: 99999;
+        z-index: 20;
         transition: filter 0.2s;
         filter: drop-shadow(0px 10px 0px var(--shadow-color));
     }
@@ -2287,7 +2334,7 @@
     .preview-mask-wrapper {
         pointer-events: none !important;
         position: absolute;
-        z-index: 99999999;
+        z-index: 30;
         top: -30px;
         left: -30px;
         overflow: hidden;
