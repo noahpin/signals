@@ -1345,7 +1345,7 @@
                       ? "0" + (timerValue % 60)
                       : timerValue % 60
               }`,
-              window.location.href,
+             "https://dailytrojan-online.github.io/signals/",
           ))
         }
         else if (mobileCheck()) {
@@ -1359,9 +1359,10 @@
                             ? "0" + (timerValue % 60)
                             : timerValue % 60
                     }`,
-                    window.location.href,
+                    "https://dailytrojan-online.github.io/signals/",
                 ),
-                url: window.location.href,
+                url: 
+                "https://dailytrojan-online.github.io/signals/",
             });
         } else {
             DTGCore.showToast("Results copied to clipboard!", "ti-clipboard");
@@ -1375,7 +1376,7 @@
                             ? "0" + (timerValue % 60)
                             : timerValue % 60
                     }`,
-                    window.location.href,
+                    "https://dailytrojan-online.github.io/signals/",
                 ),
             );
         }
